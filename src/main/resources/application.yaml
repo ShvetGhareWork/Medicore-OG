@@ -1,6 +1,19 @@
 spring:
+  config:
+    import: "optional:configserver:http://localhost:8888"
   application:
     name: heal
+
+  datasource:
+    url: jdbc:postgresql://localhost:7777/Self-heal-arch
+    username: postgres
+    password: shvetpass
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
 
 jwt:
   secretKey: ${JWT_SECRET_KEY:asdfhads9f67as98dfyaisudhfa98s67dfy89aishudfuays89dfyasi8df7asdf87987g98a7sg986a89sdf7y}

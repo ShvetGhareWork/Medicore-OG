@@ -45,4 +45,7 @@ public class Patient {
     @Enumerated(EnumType.STRING)
     private BloodGroupType bloodGroupType;
 
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "insurance_id", referencedColumnName = "id")
+    private Insurance insurance;
 }
