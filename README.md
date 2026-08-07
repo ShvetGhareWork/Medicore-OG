@@ -1,2 +1,1 @@
-# Self Healing Microservice Architecture
-
+# Self Healing MicroService Architecture
