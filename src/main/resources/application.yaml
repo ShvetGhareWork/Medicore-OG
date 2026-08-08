@@ -1,6 +1,14 @@
+server:
+  servlet:
+    context-path: /api
+
 spring:
   config:
     import: "optional:configserver:http://localhost:8888"
+  cloud:
+    config:
+      override-none:
+        true
   application:
     name: heal
 
@@ -15,5 +23,24 @@ spring:
       ddl-auto: update
     show-sql: true
 
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: 530625798914-46m6mdl7lnh45fq2apdnf4g5f1vb3uqj.apps.googleusercontent.com
+            client-secret: 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
+          github:
+            client-id: YOUR_GITHUB_CLIENT_ID
+            client-secret: YOUR_GITHUB_CLIENT_SECRET
+
 jwt:
   secretKey: ${JWT_SECRET_KEY:asdfhads9f67as98dfyaisudhfa98s67dfy89aishudfuays89dfyasi8df7asdf87987g98a7sg986a89sdf7y}
+
+eureka:
+  client:
+    enabled: false
+
+management:
+  tracing:
+    enabled: false # Disables distributed tracing tracking entirely

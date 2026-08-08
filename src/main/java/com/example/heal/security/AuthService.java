@@ -32,7 +32,6 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthUtil authUtil;
 
-    @Bean
     public LoginResponseDto login(LoginRequestDto loginRequestDto) {
 
         Authentication authentication = authenticationManager.authenticate(
@@ -91,7 +90,7 @@ public class AuthService {
                 userRepository.save(user);
             }
         } else {
-            throw new BadCredentialsException("This email is already registered with provider "+emailUser.getProviderType());
+            throw new BadCredentialsException("This email is already registered with provider "+ emailUser.getProviderType());
         }
 
         LoginResponseDto loginResponseDto = new LoginResponseDto(authUtil.generateAccessToken(user), user.getId());

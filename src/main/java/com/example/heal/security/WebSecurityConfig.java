@@ -45,7 +45,8 @@ public class WebSecurityConfig {
                 .sessionManagement(sessionConfig ->
                         sessionConfig.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/public/**", "/auth/**").permitAll()
+                        // 1. ADDED OAuth2 patterns to allow the callback endpoints to bypass filters
+                        .requestMatchers("/public/**", "/auth/**", "/login/**", "/oauth2/**").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/admin/**")
                         .hasAnyAuthority(APPOINTMENT_DELETE.name(),
                                 USER_MANAGE.name())
@@ -66,8 +67,6 @@ public class WebSecurityConfig {
                             handlerExceptionResolver.resolveException(request, response, null, accessDeniedException);
                         }));
 
-//                .formLogin();
         return httpSecurity.build();
     }
-
 }

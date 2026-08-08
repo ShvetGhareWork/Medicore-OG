@@ -2,6 +2,6 @@ package com.example.heal.entity.type;
 
 public enum AuthProviderType {
     GOOGLE,
-    GITHUB,
-    FACEBOOK, EMAIL
+//    GITHUB,
+    EMAIL
 }

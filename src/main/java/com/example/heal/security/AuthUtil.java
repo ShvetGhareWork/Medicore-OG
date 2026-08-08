@@ -49,8 +49,7 @@ public class AuthUtil {
     public AuthProviderType getProviderTypeFromRegistrationId(String registrationId) {
         return switch (registrationId.toLowerCase()) {
             case "google" -> AuthProviderType.GOOGLE;
-            case "facebook" -> AuthProviderType.FACEBOOK;
-            case "github" -> AuthProviderType.GITHUB;
+//            case "github" -> AuthProviderType.GITHUB;
             default -> throw new IllegalStateException("Unsupported Oauth2 provider: " + registrationId.toLowerCase());
         };
     }
