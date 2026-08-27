@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import Lenis from "lenis";
 import {
     AnimatePresence,
@@ -258,14 +259,16 @@ export default function MediCoreLanding() {
                     </nav>
 
                     {/* Desktop CTA */}
-                    <motion.button
-                        whileHover={reduce ? undefined : { scale: 1.03 }}
-                        whileTap={reduce ? undefined : { scale: 0.97 }}
-                        className="hidden items-center gap-2 rounded-[5px] bg-[#0f172a] px-5 py-3 text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-[#1e293b] lg:flex"
-                    >
-                        Get started
-                        <ArrowRight className="h-3.5 w-3.5" />
-                    </motion.button>
+                    <Link href="/register" passHref legacyBehavior>
+                        <motion.button
+                            whileHover={reduce ? undefined : { scale: 1.03 }}
+                            whileTap={reduce ? undefined : { scale: 0.97 }}
+                            className="hidden items-center gap-2 rounded-[5px] bg-[#0f172a] px-5 py-3 text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-[#1e293b] lg:flex"
+                        >
+                            Get started
+                            <ArrowRight className="h-3.5 w-3.5" />
+                        </motion.button>
+                    </Link>
 
                     {/* Mobile button */}
                     <button
@@ -307,10 +310,12 @@ export default function MediCoreLanding() {
                                     </a>
                                 ))}
 
-                                <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-md bg-[#0f172a] py-3.5 text-xs font-bold uppercase tracking-wider text-white">
-                                    Get started
-                                    <ArrowRight className="h-4 w-4" />
-                                </button>
+                                <Link href="/register" passHref legacyBehavior>
+                                    <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-md bg-[#0f172a] py-3.5 text-xs font-bold uppercase tracking-wider text-white">
+                                        Get started
+                                        <ArrowRight className="h-4 w-4" />
+                                    </button>
+                                </Link>
                             </nav>
                         </motion.div>
                     )}
@@ -342,18 +347,20 @@ export default function MediCoreLanding() {
                             <p className="mt-6 max-w-[550px] text-[15px] leading-7 text-slate-500 sm:mt-7 sm:text-[16px]">
                                 One secure and scalable platform for patients, clinicians,
                                 operations and care.
-                            </p>
+                             </p>
 
                             {/* Buttons */}
                             <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row">
-                                <motion.button
-                                    whileHover={reduce ? undefined : { scale: 1.02 }}
-                                    whileTap={reduce ? undefined : { scale: 0.98 }}
-                                    className="group flex items-center justify-center gap-2 rounded-[5px] bg-[#0f172a] px-6 py-3.5 text-[12px] font-bold uppercase tracking-[0.08em] text-white shadow-sm transition-colors hover:bg-[#1e293b]"
-                                >
-                                    Get started
-                                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                                </motion.button>
+                                <Link href="/register" passHref legacyBehavior>
+                                    <motion.button
+                                        whileHover={reduce ? undefined : { scale: 1.02 }}
+                                        whileTap={reduce ? undefined : { scale: 0.98 }}
+                                        className="group flex items-center justify-center gap-2 rounded-[5px] bg-[#0f172a] px-6 py-3.5 text-[12px] font-bold uppercase tracking-[0.08em] text-white shadow-sm transition-colors hover:bg-[#1e293b]"
+                                    >
+                                        Get started
+                                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                                    </motion.button>
+                                </Link>
 
                                 <a
                                     href="#features"
@@ -844,14 +851,16 @@ export default function MediCoreLanding() {
                         patient care.
                     </p>
 
-                    <motion.button
-                        whileHover={reduce ? undefined : { scale: 1.03 }}
-                        whileTap={reduce ? undefined : { scale: 0.97 }}
-                        className="mt-8 inline-flex items-center gap-2 rounded-[5px] bg-[#0f172a] px-6 py-3.5 text-[11px] font-bold uppercase tracking-[0.1em] text-white shadow-md transition-colors hover:bg-[#1e293b]"
-                    >
-                        Get started
-                        <ArrowRight className="h-4 w-4" />
-                    </motion.button>
+                    <Link href="/register" passHref legacyBehavior>
+                        <motion.button
+                            whileHover={reduce ? undefined : { scale: 1.03 }}
+                            whileTap={reduce ? undefined : { scale: 0.97 }}
+                            className="mt-8 inline-flex items-center gap-2 rounded-[5px] bg-[#0f172a] px-6 py-3.5 text-[11px] font-bold uppercase tracking-[0.1em] text-white shadow-md transition-colors hover:bg-[#1e293b]"
+                        >
+                            Get started
+                            <ArrowRight className="h-4 w-4" />
+                        </motion.button>
+                    </Link>
                 </Reveal>
             </section>
 
