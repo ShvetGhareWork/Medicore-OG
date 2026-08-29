@@ -42,14 +42,14 @@ export default function LoginPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || "Invalid credentials or login failed.");
+        new Error(result.message || "Invalid credentials or login failed.");
       }
 
       localStorage.setItem("token", result.jwt);
       localStorage.setItem("userId", result.id);
 
       alert("Login successful! Redirecting...");
-      router.push("/");
+      router.push("/dashboard");
     } catch (err: any) {
       console.error("Login error:", err);
       setError(err.message || "Failed to connect to the backend server.");

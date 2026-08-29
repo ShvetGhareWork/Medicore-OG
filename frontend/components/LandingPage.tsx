@@ -259,7 +259,7 @@ export default function MediCoreLanding() {
                     </nav>
 
                     {/* Desktop CTA */}
-                    <Link href="/register" passHref legacyBehavior>
+                    <Link href="/register" passHref >
                         <motion.button
                             whileHover={reduce ? undefined : { scale: 1.03 }}
                             whileTap={reduce ? undefined : { scale: 0.97 }}
@@ -310,7 +310,7 @@ export default function MediCoreLanding() {
                                     </a>
                                 ))}
 
-                                <Link href="/register" passHref legacyBehavior>
+                                <Link href="/register" passHref >
                                     <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-md bg-[#0f172a] py-3.5 text-xs font-bold uppercase tracking-wider text-white">
                                         Get started
                                         <ArrowRight className="h-4 w-4" />
@@ -351,7 +351,7 @@ export default function MediCoreLanding() {
 
                             {/* Buttons */}
                             <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row">
-                                <Link href="/register" passHref legacyBehavior>
+                                <Link href="/register" passHref >
                                     <motion.button
                                         whileHover={reduce ? undefined : { scale: 1.02 }}
                                         whileTap={reduce ? undefined : { scale: 0.98 }}
@@ -851,7 +851,7 @@ export default function MediCoreLanding() {
                         patient care.
                     </p>
 
-                    <Link href="/register" passHref legacyBehavior>
+                    <Link href="/register" passHref >
                         <motion.button
                             whileHover={reduce ? undefined : { scale: 1.03 }}
                             whileTap={reduce ? undefined : { scale: 0.97 }}
