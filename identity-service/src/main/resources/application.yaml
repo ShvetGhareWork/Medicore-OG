@@ -21,11 +21,16 @@ spring:
       client:
         registration:
           google:
-            client-id: ${GOOGLE_CLIENT_ID:YOUR_GOOGLE_CLIENT_ID}
-            client-secret: ${GOOGLE_CLIENT_SECRET:YOUR_GOOGLE_CLIENT_SECRET}
+            client-id: ${GOOGLE_CLIENT_ID:530625798914-46m6mdl7lnh45fq2apdnf4g5f1vb3uqj.apps.googleusercontent.com}
+            client-secret: ${GOOGLE_CLIENT_SECRET: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}
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope:
+              - email
+              - profile
+              - openid
 
 jwt:
-  secretKey: ${JWT_SECRET_KEY:defaultSecretKeyForDevelopmentShouldBeAtLeast32BytesLong}
+  secretKey: ${JWT_SECRET_KEY:asdfhads9f67as98dfyaisudhfa98s67dfy89aishudfuays89dfyasi8df7asdf87987g98a7sg986a89sdf7y}
 
 eureka:
   client:

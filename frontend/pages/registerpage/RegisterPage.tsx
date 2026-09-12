@@ -23,6 +23,10 @@ export default function RegisterPage() {
     const [loading, setLoading] = useState(false);
     const router = useRouter();
 
+    const handleGoogleLogin = () => {
+        window.location.href = "http://localhost:8081/oauth2/authorization/google";
+    };
+
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setError("");
@@ -32,7 +36,7 @@ export default function RegisterPage() {
         const data = Object.fromEntries(formData);
 
         try {
-            const response = await fetch("http://localhost:8080/api/auth/signup", {
+            const response = await fetch("http://localhost:8081/auth/signup", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -49,7 +53,7 @@ export default function RegisterPage() {
 
             if (!response.ok) {
                 throw new Error(
-                    result.message || "Registration failed. Please try again."
+                    result.error || result.message || "Registration failed. Please try again."
                 );
             }
 
@@ -196,7 +200,7 @@ export default function RegisterPage() {
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                                 >
                                     <Eye className="w-4 h-4"/>
                                 </button>
@@ -248,7 +252,7 @@ export default function RegisterPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-black hover:bg-slate-800 text-white text-sm font-semibold py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all mt-2 disabled:opacity-50"
+                            className="w-full bg-black hover:bg-slate-800 text-white text-sm font-semibold py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all mt-2 disabled:opacity-50 cursor-pointer"
                         >
                             {loading ? "Creating Account..." : "Create Account"}{" "}
                             <ArrowRight className="w-4 h-4"/>
@@ -266,7 +270,11 @@ export default function RegisterPage() {
                         </div>
 
                         <div className="grid grid-cols-2 gap-3 mt-2">
-                            <button className="flex items-center justify-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white hover:bg-slate-50 transition-colors">
+                            <button
+                                type="button"
+                                onClick={handleGoogleLogin}
+                                className="flex items-center justify-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white hover:bg-slate-50 transition-colors cursor-pointer"
+                            >
                                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
                                     <path
                                         fill="currentColor"
@@ -293,7 +301,10 @@ export default function RegisterPage() {
                   Google
                 </span>
                             </button>
-                            <button className="flex items-center justify-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white hover:bg-slate-50 transition-colors">
+                            <button
+                                type="button"
+                                className="flex items-center justify-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white hover:bg-slate-50 transition-colors cursor-pointer"
+                            >
                                 <GitBranchPlusIcon className="w-3.5 h-3.5 text-slate-900"/>
                                 <span className="text-xs font-semibold text-slate-700">
                   GitHub

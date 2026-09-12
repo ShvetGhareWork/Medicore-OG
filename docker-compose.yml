@@ -1,0 +1,152 @@
+version: '3.8'
+
+networks:
+  hospital-network:
+    driver: bridge
+
+services:
+  eureka-server:
+    build: ./eureka-server
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - hospital-network
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8761/ || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_PORT=8080
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
+    networks:
+      - hospital-network
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+
+  identity-service:
+    build: ./identity-service
+    container_name: identity-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SERVER_PORT=8081
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/Self-heal-arch
+    networks:
+      - hospital-network
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+
+  patient-service:
+    build: ./patient-service
+    container_name: patient-service
+    ports:
+      - "8082:8082"
+    environment:
+      - SERVER_PORT=8082
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
+    networks:
+      - hospital-network
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+
+  doctor-service:
+    build: ./doctor-service
+    container_name: doctor-service
+    ports:
+      - "8083:8083"
+    environment:
+      - SERVER_PORT=8083
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
+    networks:
+      - hospital-network
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+
+  department-service:
+    build: ./department-service
+    container_name: department-service
+    ports:
+      - "8084:8084"
+    environment:
+      - SERVER_PORT=8084
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
+    networks:
+      - hospital-network
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+
+  appointment-service:
+    build: ./appointment-service
+    container_name: appointment-service
+    ports:
+      - "8085:8085"
+    environment:
+      - SERVER_PORT=8085
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
+    networks:
+      - hospital-network
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+
+  insurance-service:
+    build: ./insurance-service
+    container_name: insurance-service
+    ports:
+      - "8086:8086"
+    environment:
+      - SERVER_PORT=8086
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
+    networks:
+      - hospital-network
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+
+  admin-analytics-service:
+    build: ./admin-analytics-service
+    container_name: admin-analytics-service
+    ports:
+      - "8087:8087"
+    environment:
+      - SERVER_PORT=8087
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
+    networks:
+      - hospital-network
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: postgres-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: shvetpass
+      POSTGRES_DB: Self-heal-arch
+    ports:
+      - "7777:5432"
+    networks:
+      - hospital-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d Self-heal-arch" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5

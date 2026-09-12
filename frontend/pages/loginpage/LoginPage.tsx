@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ShieldPlus,
   Shield,
@@ -18,6 +18,19 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (!searchParams) return;
+    const errorParam = searchParams.get("error");
+    if (errorParam) {
+      setError(decodeURIComponent(errorParam));
+    }
+  }, [searchParams]);
+
+  const handleGoogleLogin = () => {
+    window.location.href = "http://localhost:8081/oauth2/authorization/google";
+  };
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -28,7 +41,7 @@ export default function LoginPage() {
     const data = Object.fromEntries(formData);
 
     try {
-      const response = await fetch("http://localhost:8080/api/auth/login", {
+      const response = await fetch("http://localhost:8081/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -42,13 +55,12 @@ export default function LoginPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        new Error(result.message || "Invalid credentials or login failed.");
+        throw new Error(result.error || result.message || "Invalid credentials or login failed.");
       }
 
       localStorage.setItem("token", result.jwt);
       localStorage.setItem("userId", result.id);
 
-      alert("Login successful! Redirecting...");
       router.push("/dashboard");
     } catch (err: any) {
       console.error("Login error:", err);
@@ -198,7 +210,7 @@ export default function LoginPage() {
               <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-[#111827] hover:bg-slate-800 text-white text-sm font-semibold py-2.5 rounded-lg transition-all mt-2 disabled:opacity-50"
+                  className="w-full bg-[#111827] hover:bg-slate-800 text-white text-sm font-semibold py-2.5 rounded-lg transition-all mt-2 disabled:opacity-50 cursor-pointer"
               >
                 {loading ? "Signing In..." : "Sign In"}
               </button>
@@ -214,7 +226,11 @@ export default function LoginPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-2 mt-1">
-                <button className="flex items-center justify-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white hover:bg-slate-50 transition-colors">
+                <button
+                    type="button"
+                    onClick={handleGoogleLogin}
+                    className="flex items-center justify-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white hover:bg-slate-50 transition-colors cursor-pointer"
+                >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
                     <path
                         fill="currentColor"
@@ -241,7 +257,10 @@ export default function LoginPage() {
                   Google
                 </span>
                 </button>
-                <button className="flex items-center justify-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white hover:bg-slate-50 transition-colors">
+                <button
+                    type="button"
+                    className="flex items-center justify-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white hover:bg-slate-50 transition-colors cursor-pointer"
+                >
                   <GitBranchPlusIcon className="w-3.5 h-3.5 text-slate-900" />
                   <span className="text-xs font-semibold text-slate-700">
                   GitHub
