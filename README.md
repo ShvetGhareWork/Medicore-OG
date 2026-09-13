@@ -105,6 +105,12 @@ This distinction — **state-in-flight = human gate** — is the project's core 
 
 ## Tech Stack
 
+### Frontend Client (MediCore HMS)
+- Next.js 16.3 (Turbopack, App Router)
+- React 19 & TypeScript
+- Tailwind CSS v4 & Lucide Icons
+- Framer Motion (animated multi-step slide-over drawers, modal transitions, and dynamic directory updates)
+
 ### Backend
 - Java 21, Spring Boot 3.x
 - Spring Cloud Gateway, Eureka/Consul (service discovery)
@@ -148,17 +154,28 @@ This distinction — **state-in-flight = human gate** — is the project's core 
 
 ### Prerequisites
 - Java 21+
+- Node.js 20+ & npm
 - Docker & Docker Compose
 - kubectl + a local Kubernetes cluster (minikube / kind / Docker Desktop)
 - Maven or Gradle
 
-### Local setup
+### Local Setup
+
+#### 1. Start Infrastructure & Microservices
 ```bash
 git clone https://github.com/<your-username>/<repo-name>.git
 cd <repo-name>
 docker-compose up -d        # spins up Postgres, Redis, Kafka, Prometheus, Grafana
 ./mvnw spring-boot:run      # or per-service, see /services
 ```
+
+#### 2. Start Frontend Client (MediCore HMS)
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Open [http://localhost:3000/dashboard](http://localhost:3000/dashboard) to view the staff management dashboard and interactive multi-step drawer.
 
 ### Deploying to Kubernetes
 ```bash

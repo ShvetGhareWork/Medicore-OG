@@ -1,764 +1,655 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from 'react';
 import {
-    Search,
-    Bell,
-    Mail,
-    HelpCircle,
-    LayoutDashboard,
-    Users,
-    Calendar,
-    Stethoscope,
-    Building2,
-    UserPlus,
-    BedDouble,
-    FileText,
-    Pill,
-    TestTube,
-    CreditCard,
-    ShieldCheck,
-    BarChart3,
-    PieChart,
-    MessageSquare,
-    Settings,
-    ChevronDown,
-    Plus,
-    MoreHorizontal,
-    Circle,
-    MapPin,
-    TrendingUp,
-    Activity,
-    ArrowRight,
-    PlusSquare,
-    AlertCircle,
-    Clock,
-    CalendarPlus,
-    FilePlus,
-    FileBox,
-    Menu,
-    X,
-    TrendingDown
-} from "lucide-react";
+    Search, Bell, Plus, Users, ClipboardCheck, Clock, PieChart,
+    ChevronDown, Filter, RefreshCw, MoreVertical, LayoutDashboard,
+    Calendar, Building2, UserPlus, Bed, FileText, Pill, FlaskConical,
+    CreditCard, ShieldCheck, LineChart, Settings, HelpCircle, Menu, X,
+    Download, Sparkles
+} from 'lucide-react';
+import { AddMedicModal, StaffMember } from '../addmedicformpage/AddMedicFormPage';
 
-export default function DashboardPage() {
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+const INITIAL_STAFF: StaffMember[] = [
+    {
+        name: 'Dr. Priya Shah',
+        email: 'p.shah@medicore.org',
+        id: 'DOC-2026-0042',
+        role: 'Doctor',
+        roleColor: 'bg-teal-50 text-teal-700 border border-teal-200/60',
+        dept: 'Cardiology',
+        subDept: 'Chief Resident',
+        status: 'Active',
+        statusColor: 'text-teal-700 bg-teal-50',
+        statusDot: 'bg-teal-500',
+        date: '14 Jan 2024',
+        initials: 'PS'
+    },
+    {
+        name: 'Dr. Rahul Sharma',
+        email: 'r.sharma@medicore.org',
+        id: 'DOC-2026-0089',
+        role: 'Doctor',
+        roleColor: 'bg-teal-50 text-teal-700 border border-teal-200/60',
+        dept: 'General Medicine',
+        subDept: 'Senior Physician',
+        status: 'Active',
+        statusColor: 'text-teal-700 bg-teal-50',
+        statusDot: 'bg-teal-500',
+        date: '22 Feb 2024',
+        initials: 'RS'
+    },
+    {
+        name: 'Sarah Jenkins, RN',
+        email: 's.jenkins@medicore.org',
+        id: 'NRS-2026-0115',
+        role: 'Nurse',
+        roleColor: 'bg-indigo-50 text-indigo-700 border border-indigo-200/60',
+        dept: 'Emergency Care',
+        subDept: 'Head Nurse / Triage Lead',
+        status: 'Active',
+        statusColor: 'text-teal-700 bg-teal-50',
+        statusDot: 'bg-teal-500',
+        date: '03 Mar 2024',
+        initials: 'SJ'
+    },
+    {
+        name: 'Dr. Ananya Desai',
+        email: 'a.desai@medicore.org',
+        id: 'DOC-2026-0156',
+        role: 'Doctor',
+        roleColor: 'bg-teal-50 text-teal-700 border border-teal-200/60',
+        dept: 'Neurology',
+        subDept: 'Senior Consultant',
+        status: 'Active',
+        statusColor: 'text-teal-700 bg-teal-50',
+        statusDot: 'bg-teal-500',
+        date: '18 Apr 2024',
+        initials: 'AD'
+    },
+    {
+        name: 'Vikram Joshi, MD',
+        email: 'v.joshi@medicore.org',
+        id: 'DOC-2026-0203',
+        role: 'Doctor',
+        roleColor: 'bg-teal-50 text-teal-700 border border-teal-200/60',
+        dept: 'Orthopedics',
+        subDept: 'Associate Specialist',
+        status: 'On Sabbatical',
+        statusColor: 'text-slate-600 bg-slate-100',
+        statusDot: 'bg-slate-400',
+        date: '09 May 2024',
+        initials: 'VJ'
+    },
+    {
+        name: 'Elena Rostova',
+        email: 'e.rostova@medicore.org',
+        id: 'LAB-2026-0091',
+        role: 'Pathologist',
+        roleColor: 'bg-blue-50 text-blue-700 border border-blue-200/60',
+        dept: 'Pathology & Diagnostics',
+        subDept: 'Senior Pathologist',
+        status: 'Active',
+        statusColor: 'text-teal-700 bg-teal-50',
+        statusDot: 'bg-teal-500',
+        date: '30 Jun 2024',
+        initials: 'ER'
+    }
+];
+
+export default function StaffDashboard() {
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [staffList, setStaffList] = useState<StaffMember[]>(INITIAL_STAFF);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedRole, setSelectedRole] = useState('All Roles');
+    const [selectedDept, setSelectedDept] = useState('All Departments');
+    const [selectedStatus, setSelectedStatus] = useState('All Statuses');
+    const [activePage, setActivePage] = useState(1);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+    const showToast = (msg: string) => {
+        setToastMessage(msg);
+        setTimeout(() => setToastMessage(null), 3500);
+    };
+
+    const handleStaffAdded = (newStaff: StaffMember) => {
+        setStaffList(prev => [newStaff, ...prev]);
+        showToast(`Staff member "${newStaff.name}" added successfully!`);
+    };
+
+    // Filter Logic
+    const filteredStaff = useMemo(() => {
+        return staffList.filter(staff => {
+            const matchesSearch =
+                staff.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                staff.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                staff.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                staff.dept.toLowerCase().includes(searchQuery.toLowerCase());
+
+            const matchesRole =
+                selectedRole === 'All Roles' ||
+                staff.role.toLowerCase() === selectedRole.toLowerCase();
+
+            const matchesDept =
+                selectedDept === 'All Departments' ||
+                staff.dept.toLowerCase().includes(selectedDept.toLowerCase());
+
+            const matchesStatus =
+                selectedStatus === 'All Statuses' ||
+                staff.status.toLowerCase() === selectedStatus.toLowerCase();
+
+            return matchesSearch && matchesRole && matchesDept && matchesStatus;
+        });
+    }, [staffList, searchQuery, selectedRole, selectedDept, selectedStatus]);
+
+    const handleResetFilters = () => {
+        setSearchQuery('');
+        setSelectedRole('All Roles');
+        setSelectedDept('All Departments');
+        setSelectedStatus('All Statuses');
+        showToast('Filters reset to default');
+    };
+
+    const handleExport = () => {
+        const json = JSON.stringify(staffList, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `medicore-staff-directory-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        showToast('Staff directory exported successfully');
+    };
+
+    const totalStaffCount = 348 + (staffList.length - INITIAL_STAFF.length);
 
     return (
-        <div className="flex h-screen w-full bg-slate-50 font-sans overflow-hidden text-slate-900">
-            {/* Mobile Overlay */}
-            {isMobileMenuOpen && (
+        <div className="flex h-screen bg-slate-50 font-sans overflow-hidden text-slate-900">
+            {/* Custom Scrollbar Styles */}
+            <style>{`
+                ::-webkit-scrollbar { width: 6px; height: 6px; }
+                ::-webkit-scrollbar-track { background: transparent; }
+                ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+                ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+            `}</style>
+
+            {/* TOAST NOTIFICATION */}
+            {toastMessage && (
+                <div className="fixed bottom-6 right-6 z-[120] bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 border border-slate-700 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <Sparkles size={18} className="text-teal-400" />
+                    <span className="text-xs font-medium">{toastMessage}</span>
+                </div>
+            )}
+
+            {/* MOBILE OVERLAY */}
+            {isSidebarOpen && (
                 <div
-                    className="fixed inset-0 bg-black/50 z-40 md:hidden"
-                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="fixed inset-0 bg-slate-900/60 z-40 md:hidden transition-opacity backdrop-blur-xs"
+                    onClick={() => setIsSidebarOpen(false)}
                 />
             )}
 
-            {/* Sidebar */}
+            {/* SIDEBAR */}
             <aside className={`
-                fixed md:relative z-50 h-full bg-[#0F172A] text-slate-300 flex flex-col 
-                w-[260px] shrink-0 overflow-y-auto hidden-scrollbar
-                transition-transform duration-300 ease-in-out
-                ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+                fixed inset-y-0 left-0 z-50 w-64 bg-[#0f172a] text-slate-300 h-full overflow-y-auto flex flex-col
+                transition-transform duration-300 ease-in-out md:relative md:translate-x-0
+                ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
             `}>
-                {/* Logo */}
-                <div className="flex items-center justify-between gap-3 px-6 py-5 border-b border-slate-800">
-                    <div className="flex items-center gap-3 shrink-0">
-                        <div className="w-8 h-8 rounded-lg bg-teal-500 flex items-center justify-center shrink-0">
-                            <Plus className="w-5 h-5 text-white" />
+                <div className="p-4 border-b border-slate-800 flex items-center justify-between text-white">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center font-bold text-white shadow-sm">
+                            <span className="text-lg leading-none">+</span>
                         </div>
-                        <div className="flex flex-col">
-                            <span className="text-white font-bold text-lg leading-tight">
-                                MediCore HMS
-                            </span>
-                            <span className="text-xs text-slate-400">
-                                Hospital Management
-                            </span>
+                        <div>
+                            <h1 className="text-sm font-semibold tracking-wide text-white">MediCore HMS</h1>
+                            <p className="text-[11px] text-slate-400">Hospital Management System</p>
                         </div>
                     </div>
-                    <button
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className="md:hidden text-slate-400 hover:text-white"
-                    >
-                        <X className="w-6 h-6" />
+                    <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-slate-400 hover:text-white p-1">
+                        <X size={18} />
                     </button>
                 </div>
 
-                {/* Navigation */}
-                <div className="flex-1 py-4 flex flex-col gap-6 px-3 overflow-y-auto">
-                    <div>
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-3">
-                            Overview
-                        </div>
-                        <a
-                            href="#"
-                            className="flex items-center gap-3 px-3 py-2.5 bg-blue-600 text-white rounded-lg"
-                        >
-                            <LayoutDashboard className="w-4 h-4" />
-                            <span className="text-sm font-medium">Dashboard</span>
-                        </a>
-                    </div>
-
-                    <div>
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-3">
-                            Operations
-                        </div>
-                        <div className="space-y-0.5">
-                            <NavItem icon={<Users className="w-4 h-4" />} label="Patients" />
-                            <NavItem icon={<Calendar className="w-4 h-4" />} label="Appointments" />
-                            <NavItem icon={<Stethoscope className="w-4 h-4" />} label="Doctors" />
-                            <NavItem icon={<Building2 className="w-4 h-4" />} label="Departments" />
-                            <NavItem icon={<UserPlus className="w-4 h-4" />} label="Admissions" />
-                            <NavItem icon={<BedDouble className="w-4 h-4" />} label="Bed Management" />
-                        </div>
-                    </div>
-
-                    <div>
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-3">
-                            Clinical
-                        </div>
-                        <div className="space-y-0.5">
-                            <NavItem icon={<FileText className="w-4 h-4" />} label="Medical Records" />
-                            <NavItem icon={<Pill className="w-4 h-4" />} label="Pharmacy" />
-                            <NavItem icon={<TestTube className="w-4 h-4" />} label="Laboratory" />
-                        </div>
-                    </div>
-
-                    <div>
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-3">
-                            Finance
-                        </div>
-                        <div className="space-y-0.5">
-                            <NavItem icon={<CreditCard className="w-4 h-4" />} label="Billing" />
-                            <NavItem icon={<ShieldCheck className="w-4 h-4" />} label="Insurance" />
-                        </div>
-                    </div>
-
-                    <div>
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-3">
-                            Insights
-                        </div>
-                        <div className="space-y-0.5">
-                            <NavItem icon={<BarChart3 className="w-4 h-4" />} label="Analytics" />
-                            <NavItem icon={<PieChart className="w-4 h-4" />} label="Reports" />
-                        </div>
-                    </div>
-
-                    <div>
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-3">
-                            Communication
-                        </div>
-                        <div className="space-y-0.5">
-                            <NavItem icon={<MessageSquare className="w-4 h-4" />} label="Messages" />
-                            <div className="flex items-center justify-between px-3 py-2 text-slate-300 hover:bg-slate-800/50 rounded-lg cursor-pointer">
-                                <div className="flex items-center gap-3">
-                                    <Bell className="w-4 h-4" />
-                                    <span className="text-sm">Notifications</span>
-                                </div>
-                                <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                                    3
-                                </span>
-                            </div>
-                        </div>
-                    </div>
+                <div className="px-4 pt-4 pb-2 text-[10px] font-bold text-slate-400 tracking-wider">
+                    CITY CENTRAL BRANCH
                 </div>
 
-                {/* Bottom Actions */}
-                <div className="p-3 space-y-0.5 border-t border-slate-800 mt-auto">
-                    <NavItem icon={<Settings className="w-4 h-4" />} label="Settings" />
-                    <NavItem icon={<HelpCircle className="w-4 h-4" />} label="Help & Support" />
-                    <div className="mt-2 flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-slate-800/50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                            <img
-                                src="https://ui-avatars.com/api/?name=Admin&background=1e293b&color=fff"
-                                alt="User"
-                                className="w-8 h-8 rounded-full bg-slate-800"
-                            />
-                            <div className="flex flex-col">
-                                <span className="text-sm font-medium text-white leading-tight">
-                                    Administrator
-                                </span>
-                                <span className="text-[11px] text-slate-400">Super Admin</span>
-                            </div>
+                <nav className="flex-1 px-3 space-y-5 pb-4">
+                    <div>
+                        <div className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 tracking-wider">OVERVIEW</div>
+                        <NavItem icon={<LayoutDashboard size={17} />} label="Dashboard" />
+                    </div>
+
+                    <div>
+                        <div className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 tracking-wider">OPERATIONS</div>
+                        <NavItem icon={<Users size={17} />} label="Patients" />
+                        <NavItem icon={<Calendar size={17} />} label="Appointments" />
+                        <NavItem icon={<UserPlus size={17} />} label="Doctors / Staff" active />
+                        <NavItem icon={<Building2 size={17} />} label="Departments" />
+                        <NavItem icon={<UserPlus size={17} />} label="Admissions" />
+                        <NavItem icon={<Bed size={17} />} label="Bed Management" />
+                    </div>
+
+                    <div>
+                        <div className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 tracking-wider">CLINICAL</div>
+                        <NavItem icon={<FileText size={17} />} label="Medical Records" />
+                        <NavItem icon={<Pill size={17} />} label="Pharmacy" />
+                        <NavItem icon={<FlaskConical size={17} />} label="Laboratory" />
+                    </div>
+
+                    <div>
+                        <div className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 tracking-wider">FINANCE & INSIGHTS</div>
+                        <NavItem icon={<CreditCard size={17} />} label="Billing" />
+                        <NavItem icon={<ShieldCheck size={17} />} label="Insurance" />
+                        <NavItem icon={<LineChart size={17} />} label="Analytics" />
+                    </div>
+                </nav>
+
+                <div className="p-3 mt-auto border-t border-slate-800 space-y-1 bg-[#0f172a]">
+                    <NavItem icon={<Settings size={17} />} label="Settings" />
+                    <NavItem icon={<HelpCircle size={17} />} label="Help & Support" />
+                    <div className="mt-3 flex items-center gap-3 px-3 py-2.5 bg-slate-800/80 rounded-xl text-white border border-slate-700/50">
+                        <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-xs font-semibold text-white">
+                            EV
                         </div>
-                        <ChevronDown className="w-4 h-4 text-slate-500" />
+                        <div className="text-xs min-w-0">
+                            <p className="font-semibold truncate">Dr. Eleanor Vance</p>
+                            <p className="text-[11px] text-slate-400">Super Admin</p>
+                        </div>
                     </div>
                 </div>
             </aside>
 
-            {/* Main Content */}
-            <div className="flex-1 flex flex-col h-full overflow-hidden w-full">
-                {/* Top Header */}
-                <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shrink-0 z-10">
+            {/* MAIN CONTENT AREA */}
+            <main className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300 ${isAddModalOpen ? 'opacity-95' : 'opacity-100'}`}>
+                {/* TOP HEADER */}
+                <header className="h-16 bg-white border-b border-slate-200/80 flex items-center justify-between px-4 lg:px-8 shrink-0 z-10">
                     <div className="flex items-center gap-4 flex-1">
-                        <button
-                            onClick={() => setIsMobileMenuOpen(true)}
-                            className="md:hidden text-slate-600 hover:text-slate-900"
-                        >
-                            <Menu className="w-6 h-6" />
+                        <button onClick={() => setIsSidebarOpen(true)} className="md:hidden text-slate-500 hover:text-slate-800 p-1">
+                            <Menu size={22} />
                         </button>
-
-                        <div className="relative w-full max-w-[200px] md:max-w-[400px] lg:w-96">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <div className="relative w-full max-w-md hidden sm:block">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                             <input
                                 type="text"
-                                placeholder="Search..."
-                                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search staff by name, ID, or role..."
+                                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-600/30 focus:border-teal-600 transition-all"
                             />
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3 md:gap-6">
-                        <div className="hidden md:flex items-center gap-2 text-sm font-medium text-slate-700 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer">
-                            <MapPin className="w-4 h-4 text-slate-500" />
-                            Main Branch
-                            <ChevronDown className="w-4 h-4 text-slate-500 ml-1" />
+                    <div className="flex items-center gap-3">
+                        <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-slate-700 border border-slate-200 py-1.5 px-3 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors">
+                            <Building2 size={14} className="text-teal-600" />
+                            <span>City Central Branch</span>
+                            <ChevronDown size={12} className="text-slate-400 ml-0.5" />
                         </div>
 
-                        <div className="flex items-center gap-3 md:gap-4 text-slate-500">
-                            <div className="relative cursor-pointer hover:text-slate-700">
-                                <Bell className="w-5 h-5" />
-                                <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 border border-white rounded-full"></span>
-                            </div>
-                            <Mail className="w-5 h-5 cursor-pointer hover:text-slate-700" />
-                            <HelpCircle className="w-5 h-5 cursor-pointer hover:text-slate-700" />
-                        </div>
+                        <button className="relative text-slate-500 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                            <Bell size={18} />
+                            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white"></span>
+                        </button>
 
-                        <div className="h-8 w-px bg-slate-200 hidden md:block"></div>
-
-                        <div className="flex items-center gap-3 cursor-pointer">
-                            <img
-                                src="https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff"
-                                alt="User"
-                                className="w-8 h-8 rounded-full"
-                            />
-                            <div className="hidden md:flex flex-col">
-                                <span className="text-sm font-semibold text-slate-700 leading-tight">
-                                    Administrator
-                                </span>
-                            </div>
-                            <ChevronDown className="w-4 h-4 text-slate-400" />
+                        <div className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-semibold cursor-pointer ring-2 ring-slate-100">
+                            EV
                         </div>
                     </div>
                 </header>
 
-                {/* Dashboard Content Scrollable */}
-                <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50 space-y-6">
-                    {/* Page Header */}
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                {/* SCROLLABLE PAGE BODY */}
+                <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-6">
+                    {/* Page Title & Breadcrumb */}
+                    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
                         <div>
-                            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                                Hospital Overview
-                            </h1>
-                            <p className="text-sm text-slate-500 mt-1">
-                                Monitor operations, patients, and financial activity.
+                            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                <span>ADMINISTRATION</span>
+                                <span>&gt;</span>
+                                <span className="text-teal-700">STAFF MANAGEMENT</span>
+                            </div>
+                            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Manage Staff</h2>
+                            <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
+                                Add, edit, and manage verified clinician identities, role clearance, and digital hospital badges.
                             </p>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 md:gap-4 w-full md:w-auto">
-                            <div className="flex items-center gap-2 text-sm font-medium text-slate-700 mr-2">
-                                <Circle className="w-2.5 h-2.5 fill-emerald-500 text-emerald-500" />
-                                All systems operational
-                            </div>
-                            <div className="flex items-center gap-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 px-3 py-2 rounded-lg shadow-sm">
-                                <Calendar className="w-4 h-4 text-slate-400" />
-                                <div className="flex flex-col text-[11px] leading-tight">
-                                    <span className="text-slate-400">Today</span>
-                                    <span className="text-slate-700 font-semibold">29 Aug</span>
-                                </div>
-                            </div>
-                            <button className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:bg-slate-50 w-full md:w-auto justify-center">
-                                <CalendarPlus className="w-4 h-4" />
-                                Book Appt
+
+                        <div className="flex items-center gap-2.5">
+                            <button
+                                onClick={handleExport}
+                                className="px-3.5 py-2 border border-slate-200 bg-white text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs flex items-center gap-2 cursor-pointer"
+                            >
+                                <Download size={14} className="text-slate-500" />
+                                Export Directory
                             </button>
-                            <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:bg-blue-700 w-full md:w-auto justify-center">
-                                <Plus className="w-4 h-4" />
-                                Add Patient
+
+                            <button
+                                onClick={() => setIsAddModalOpen(true)}
+                                className="px-3.5 py-2 bg-[#111827] hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-all shadow-xs flex items-center gap-2 cursor-pointer active:scale-95"
+                            >
+                                <Plus size={15} strokeWidth={2.5} /> Add Staff Member
                             </button>
                         </div>
                     </div>
 
-                    {/* Stats Grid */}
+                    {/* KPI Stat Cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <StatCard
-                            icon={<Users className="w-5 h-5 text-blue-600" />}
-                            iconBg="bg-blue-50"
-                            title="TOTAL PATIENTS"
-                            value="24,892"
-                            trend="+8.2% vs last month"
-                            trendUp={true}
-                            chartColor="#3b82f6"
-                        />
-                        <StatCardWithProgress
-                            icon={<Calendar className="w-5 h-5 text-emerald-600" />}
-                            iconBg="bg-emerald-50"
-                            title="TODAY'S APPTS"
-                            value="186"
-                            subLeft="24 completed"
-                            subRight="24 / 186"
-                            progress={15}
-                            progressColor="bg-emerald-500"
-                        />
-                        <StatCardWithProgress
-                            icon={<BedDouble className="w-5 h-5 text-orange-600" />}
-                            iconBg="bg-orange-50"
-                            title="BED OCCUPANCY"
-                            value={
-                                <>
-                                    138 <span className="text-slate-400 text-xl font-medium">/ 180</span>
-                                </>
-                            }
-                            subLeft="76.7% occupied"
-                            progress={76.7}
-                            progressColor="bg-red-500"
+                            title="TOTAL STAFF"
+                            value={totalStaffCount.toString()}
+                            trend="+12 this quarter"
+                            trendStatus="good"
+                            icon={<Users size={18} className="text-teal-700" />}
                         />
                         <StatCard
-                            icon={<CreditCard className="w-5 h-5 text-purple-600" />}
-                            iconBg="bg-purple-50"
-                            title="TODAY'S REVENUE"
-                            value="₹8.42L"
-                            trend="+12.4% vs yesterday"
-                            trendUp={true}
-                            chartColor="#a855f7"
+                            title="ACTIVE TODAY"
+                            value="284"
+                            trend="94% on-duty operational rate"
+                            trendStatus="good"
+                            icon={<ClipboardCheck size={18} className="text-teal-700" />}
                         />
-                    </div>
-
-                    {/* Charts Row - Fixed Structure */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Patient Overview Chart (Spans 2 cols on desktop) */}
-                        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-4 md:p-5 shadow-sm overflow-x-auto">
-                            <div className="min-w-[6000px]">
-                                <div className="flex justify-between items-start mb-6">
-                                    <div>
-                                        <h3 className="text-base font-bold text-slate-900">Patient Overview</h3>
-                                        <p className="text-xs text-slate-500 mt-0.5">New vs Returning Patients</p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex bg-slate-100 rounded-lg p-1">
-                                            <button className="px-3 py-1 text-xs font-semibold bg-white text-blue-600 rounded shadow-sm">7 Days</button>
-                                            <button className="px-3 py-1 text-xs font-medium text-slate-600 hover:text-slate-900">30 Days</button>
-                                            <button className="px-3 py-1 text-xs font-medium text-slate-600 hover:text-slate-900">3 Months</button>
-                                            <button className="px-3 py-1 text-xs font-medium text-slate-600 hover:text-slate-900">1 Year</button>
-                                        </div>
-                                        <MoreHorizontal className="w-5 h-5 text-slate-400 ml-2 cursor-pointer" />
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-6 mb-4 px-2">
-                                    <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
-                                        <div className="w-3 h-3 rounded-[2px] bg-blue-600"></div> New Patients
-                                    </div>
-                                    <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
-                                        <div className="w-3 h-3 rounded-[2px] bg-teal-400"></div> Returning Patients
-                                    </div>
-                                </div>
-
-                                <div className="relative h-64 w-full flex items-end justify-between px-2 pb-6 pt-4">
-                                    {/* Y-Axis labels */}
-                                    <div className="absolute left-0 top-0 bottom-6 flex flex-col justify-between text-[10px] text-slate-400 pr-2">
-                                        <span>800</span>
-                                        <span>600</span>
-                                        <span>400</span>
-                                        <span>200</span>
-                                        <span>0</span>
-                                    </div>
-                                    {/* Grid lines */}
-                                    <div className="absolute left-6 right-0 top-1 bottom-6 flex flex-col justify-between">
-                                        <div className="w-full border-b border-slate-100 border-dashed"></div>
-                                        <div className="w-full border-b border-slate-100 border-dashed"></div>
-                                        <div className="w-full border-b border-slate-100 border-dashed"></div>
-                                        <div className="w-full border-b border-slate-100 border-dashed"></div>
-                                        <div className="w-full border-b border-slate-200"></div>
-                                    </div>
-
-                                    {/* Bars */}
-                                    <div className="relative z-10 w-full ml-8 flex justify-between h-full items-end">
-                                        {[
-                                            { day: "23 Aug", n: "50%", r: "75%" },
-                                            { day: "24 Aug", n: "50%", r: "80%" },
-                                            { day: "25 Aug", n: "58%", r: "70%" },
-                                            { day: "26 Aug", n: "50%", r: "68%" },
-                                            { day: "27 Aug", n: "48%", r: "60%", active: true },
-                                            { day: "28 Aug", n: "48%", r: "85%" },
-                                            { day: "29 Aug", n: "58%", r: "75%" },
-                                        ].map((bar, i) => (
-                                            <div key={i} className="flex flex-col items-center gap-2 w-16 relative">
-                                                <div className="flex items-end gap-1.5 w-full h-52 justify-center">
-                                                    <div className={`w-3.5 rounded-t-sm bg-blue-600 ${bar.active ? "opacity-100" : "opacity-90"}`} style={{ height: bar.n }}></div>
-                                                    <div className={`w-3.5 rounded-t-sm bg-teal-400 ${bar.active ? "opacity-100" : "opacity-90"}`} style={{ height: bar.r }}></div>
-                                                </div>
-                                                <span className="text-[11px] font-medium text-slate-500">{bar.day}</span>
-
-                                                {/* Tooltip for active bar */}
-                                                {bar.active && (
-                                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-white border border-slate-200 rounded-lg shadow-xl p-3 w-40 z-20">
-                                                        <p className="text-xs font-semibold text-slate-800 mb-2">{bar.day} 2026</p>
-                                                        <div className="space-y-1.5">
-                                                            <div className="flex justify-between items-center text-[11px]">
-                                                                <div className="flex items-center gap-1.5 text-slate-600">
-                                                                    <div className="w-2 h-2 rounded-full bg-blue-600"></div> New Patients
-                                                                </div>
-                                                                <span className="font-bold text-slate-900">320</span>
-                                                            </div>
-                                                            <div className="flex justify-between items-center text-[11px]">
-                                                                <div className="flex items-center gap-1.5 text-slate-600">
-                                                                    <div className="w-2 h-2 rounded-full bg-teal-400"></div> Returning Patients
-                                                                </div>
-                                                                <span className="font-bold text-slate-900">480</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="mt-2 pt-2 border-t border-slate-100 flex justify-between items-center text-[11px]">
-                                                            <span className="text-slate-500 font-medium">Total</span>
-                                                            <span className="font-bold text-slate-900">800</span>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
+                        <StatCard
+                            title="PENDING ACTIVATIONS"
+                            value="6"
+                            trend="Awaiting credential verification"
+                            trendStatus="warning"
+                            icon={<Clock size={18} className="text-amber-600" />}
+                        />
+                        <div className="bg-white p-5 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+                            <div className="flex justify-between items-start mb-2">
+                                <h3 className="text-[11px] font-bold text-slate-400 tracking-wider uppercase">BY ROLE BREAKDOWN</h3>
+                                <div className="p-1.5 bg-purple-50 rounded-lg text-purple-600">
+                                    <PieChart size={18} />
                                 </div>
                             </div>
-                        </div>
-
-                        {/* Today's Appointments Timeline (Spans 1 col on desktop) */}
-                        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col">
-                            <div className="flex justify-between items-start mb-6">
-                                <div>
-                                    <h3 className="text-base font-bold text-slate-900">Today's Appointments</h3>
-                                    <p className="text-xs text-slate-500 mt-0.5">186 appointments</p>
-                                </div>
-                                <a href="#" className="text-[11px] font-semibold text-blue-600 hover:underline flex items-center gap-1">
-                                    View Calendar <ArrowRight className="w-3 h-3" />
-                                </a>
-                            </div>
-
-                            <div className="flex-1 relative overflow-x-auto">
-                                {/* Vertical Line */}
-                                <div className="absolute left-[52px] top-2 bottom-2 w-px bg-slate-200 min-h-[400px]"></div>
-
-                                <div className="space-y-6 relative z-10 min-w-[300px]">
-                                    <TimelineItem time="09:00 AM" dotColor="bg-blue-600" doctor="Dr. Priya Shah" dept="Cardiology" patient="Aarav Mehta" status="Confirmed" statusColor="text-emerald-700 bg-emerald-50 border-emerald-200" />
-                                    <TimelineItem time="10:30 AM" dotColor="bg-slate-300" doctor="Dr. Rahul Sharma" dept="General Medicine" patient="Sneha Patel" status="In Progress" statusColor="text-blue-700 bg-blue-50 border-blue-200" />
-                                    <TimelineItem time="11:45 AM" dotColor="bg-orange-500" doctor="Dr. Ananya Desai" dept="Neurology" patient="Rohan Kulkarni" status="Upcoming" statusColor="text-orange-700 bg-orange-50 border-orange-200" />
-                                    <TimelineItem time="01:30 PM" dotColor="bg-slate-300" doctor="Dr. Vikram Joshi" dept="Orthopedics" patient="Meera Nair" status="Upcoming" statusColor="text-orange-700 bg-orange-50 border-orange-200" />
-                                    <TimelineItem time="03:00 PM" dotColor="bg-slate-300" doctor="Dr. Neha Verma" dept="General Medicine" patient="Patient" status="Upcoming" statusColor="text-orange-700 bg-orange-50 border-orange-200" />
-                                </div>
-                            </div>
-                            <div className="mt-4 pt-4 border-t border-slate-100 text-center">
-                                <a href="#" className="text-xs font-semibold text-blue-600 hover:underline">View Calendar →</a>
+                            <div>
+                                <p className="text-base font-bold text-slate-900 leading-tight">142 Doctors / 126 Nurses</p>
+                                <p className="text-[11px] text-slate-500 mt-1">48 Administrative • 32 Laboratory Techs</p>
                             </div>
                         </div>
                     </div>
 
-                    {/* Bottom Row 1: Recent Patients & Quick Actions */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="col-span-1 lg:col-span-2 bg-white border border-slate-200 rounded-xl p-5 shadow-sm overflow-x-auto">
-                            <div className="flex justify-between items-start mb-4 min-w-[600px]">
-                                <div>
-                                    <h3 className="text-base font-bold text-slate-900">Recent Patients</h3>
-                                    <p className="text-xs text-slate-500 mt-0.5">Latest patient activity</p>
-                                </div>
-                                <a href="#" className="text-[11px] font-semibold text-blue-600 hover:underline flex items-center gap-1">
-                                    View All <ArrowRight className="w-3 h-3" />
-                                </a>
+                    {/* Filter & Search Bar */}
+                    <div className="bg-white p-3 rounded-t-xl border border-slate-200 border-b-0 flex flex-wrap gap-2.5 items-center justify-between">
+                        <div className="relative w-full md:w-72">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search staff by name, email, ID..."
+                                className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-teal-600"
+                            />
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                            {/* Role filter */}
+                            <div className="relative">
+                                <select
+                                    value={selectedRole}
+                                    onChange={(e) => setSelectedRole(e.target.value)}
+                                    className="appearance-none bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer focus:outline-none"
+                                >
+                                    <option value="All Roles">All Roles</option>
+                                    <option value="Doctor">Doctor</option>
+                                    <option value="Nurse">Nurse</option>
+                                    <option value="Pathologist">Pathologist</option>
+                                    <option value="Insurance Coord.">Insurance Coord.</option>
+                                    <option value="Administrative">Administrative</option>
+                                    <option value="Lab Technician">Lab Technician</option>
+                                </select>
+                                <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                             </div>
 
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                <tr className="border-b border-slate-200">
-                                    <th className="pb-3 text-[11px] font-semibold text-slate-500 uppercase">Patient</th>
-                                    <th className="pb-3 text-[11px] font-semibold text-slate-500 uppercase">ID</th>
-                                    <th className="pb-3 text-[11px] font-semibold text-slate-500 uppercase">Dept</th>
-                                    <th className="pb-3 text-[11px] font-semibold text-slate-500 uppercase">Doctor</th>
-                                    <th className="pb-3 text-[11px] font-semibold text-slate-500 uppercase">Type</th>
-                                    <th className="pb-3 text-[11px] font-semibold text-slate-500 uppercase">Status</th>
-                                    <th className="pb-3 text-[11px] font-semibold text-slate-500 uppercase">Date</th>
-                                    <th className="pb-3 text-[11px] font-semibold text-slate-500 uppercase"></th>
+                            {/* Department filter */}
+                            <div className="relative">
+                                <select
+                                    value={selectedDept}
+                                    onChange={(e) => setSelectedDept(e.target.value)}
+                                    className="appearance-none bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer focus:outline-none"
+                                >
+                                    <option value="All Departments">All Departments</option>
+                                    <option value="Cardiology">Cardiology</option>
+                                    <option value="General Medicine">General Medicine</option>
+                                    <option value="Emergency Care">Emergency Care</option>
+                                    <option value="Neurology">Neurology</option>
+                                    <option value="Orthopedics">Orthopedics</option>
+                                    <option value="Pathology">Pathology</option>
+                                </select>
+                                <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            </div>
+
+                            {/* Status filter */}
+                            <div className="relative">
+                                <select
+                                    value={selectedStatus}
+                                    onChange={(e) => setSelectedStatus(e.target.value)}
+                                    className="appearance-none bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer focus:outline-none"
+                                >
+                                    <option value="All Statuses">All Statuses</option>
+                                    <option value="Active">Active</option>
+                                    <option value="On Sabbatical">On Sabbatical</option>
+                                </select>
+                                <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            </div>
+
+                            <button
+                                onClick={handleResetFilters}
+                                title="Reset filters"
+                                className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer"
+                            >
+                                <RefreshCw size={14} />
+                            </button>
+
+                            <button
+                                title="Filter options"
+                                className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer"
+                            >
+                                <Filter size={14} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Data Table */}
+                    <div className="bg-white border border-slate-200 rounded-b-xl shadow-2xs overflow-x-auto">
+                        <table className="w-full text-left border-collapse min-w-[820px]">
+                            <thead>
+                                <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                    <th className="p-4 py-3">Staff Member</th>
+                                    <th className="p-4 py-3">Staff ID</th>
+                                    <th className="p-4 py-3">Role</th>
+                                    <th className="p-4 py-3">Department</th>
+                                    <th className="p-4 py-3">Status</th>
+                                    <th className="p-4 py-3">Date Added</th>
+                                    <th className="p-4 py-3 text-right">Actions</th>
                                 </tr>
-                                </thead>
-                                <tbody className="text-sm">
-                                <TableRow name="Aarav Mehta" id="MC-10482" dept="Cardiology" doctor="Dr. Priya Shah" type="Follow-up" status="Active" statusColor="text-emerald-700 bg-emerald-50" date="29 Aug 2026" />
-                                <TableRow name="Sneha Patel" id="MC-10481" dept="General Medicine" doctor="Dr. Rahul Sharma" type="Consultation" status="Active" statusColor="text-emerald-700 bg-emerald-50" date="29 Aug 2026" />
-                                <TableRow name="Rohan Kulkarni" id="MC-10480" dept="Neurology" doctor="Dr. Ananya Desai" type="New Visit" status="Waiting" statusColor="text-orange-700 bg-orange-50" date="29 Aug 2026" />
-                                <TableRow name="Meera Nair" id="MC-10479" dept="Orthopedics" doctor="Dr. Vikram Joshi" type="Follow-up" status="Completed" statusColor="text-blue-700 bg-blue-50" date="29 Aug 2026" />
-                                <TableRow name="Karan Singh" id="MC-10478" dept="General Medicine" doctor="Dr. Neha Verma" type="Consultation" status="Active" statusColor="text-emerald-700 bg-emerald-50" date="28 Aug 2026" />
-                                </tbody>
-                            </table>
-                        </div>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 text-xs">
+                                {filteredStaff.length > 0 ? (
+                                    filteredStaff.map((staff, idx) => (
+                                        <TableRow
+                                            key={staff.id + idx}
+                                            name={staff.name}
+                                            email={staff.email}
+                                            id={staff.id}
+                                            role={staff.role}
+                                            roleColor={staff.roleColor}
+                                            dept={staff.dept}
+                                            subDept={staff.subDept}
+                                            status={staff.status}
+                                            statusColor={staff.statusColor}
+                                            statusDot={staff.statusDot}
+                                            date={staff.date}
+                                            initials={staff.initials}
+                                            avatarUrl={staff.avatarUrl}
+                                            isNew={staff.date === 'Just Now'}
+                                        />
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={7} className="p-8 text-center text-slate-400 text-xs">
+                                            No staff members match the selected filters.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
 
-                        <div className="col-span-1 bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                            <h3 className="text-base font-bold text-slate-900 mb-4">Quick Actions</h3>
-                            <div className="grid grid-cols-2 gap-3">
-                                <QuickAction icon={<UserPlus className="w-6 h-6 text-blue-600" />} label="Add Patient" />
-                                <QuickAction icon={<CalendarPlus className="w-6 h-6 text-emerald-600" />} label="Book Appt" />
-                                <QuickAction icon={<BedDouble className="w-6 h-6 text-orange-600" />} label="Admit" />
-                                <QuickAction icon={<FileText className="w-6 h-6 text-indigo-600" />} label="Medical Record" />
-                                <QuickAction icon={<FilePlus className="w-6 h-6 text-purple-600" />} label="Invoice" />
+                        {/* Pagination Footer */}
+                        <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+                            <div>Showing 1-{filteredStaff.length} of {totalStaffCount} staff members</div>
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => setActivePage(p => Math.max(1, p - 1))}
+                                    className="px-2.5 py-1 hover:bg-slate-100 rounded text-xs font-medium cursor-pointer"
+                                >
+                                    &lt; Previous
+                                </button>
+                                {[1, 2, 3].map(page => (
+                                    <button
+                                        key={page}
+                                        onClick={() => setActivePage(page)}
+                                        className={`w-7 h-7 flex items-center justify-center rounded-md font-semibold text-xs cursor-pointer ${
+                                            activePage === page ? 'bg-[#111827] text-white' : 'hover:bg-slate-100 text-slate-700'
+                                        }`}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+                                <span className="px-1 text-slate-400">...</span>
+                                <button
+                                    onClick={() => setActivePage(58)}
+                                    className={`w-7 h-7 flex items-center justify-center rounded-md font-semibold text-xs cursor-pointer ${
+                                        activePage === 58 ? 'bg-[#111827] text-white' : 'hover:bg-slate-100 text-slate-700'
+                                    }`}
+                                >
+                                    58
+                                </button>
+                                <button
+                                    onClick={() => setActivePage(p => p + 1)}
+                                    className="px-2.5 py-1 hover:bg-slate-100 rounded text-xs font-medium cursor-pointer"
+                                >
+                                    Next &gt;
+                                </button>
                             </div>
                         </div>
                     </div>
+                </div>
+            </main>
 
-                    {/* Bottom Row 2: Departments, Capacity, Alerts */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {/* Department Overview */}
-                        <div className="col-span-1 bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                            <div className="flex justify-between items-start mb-5">
-                                <h3 className="text-base font-bold text-slate-900">Department Overview</h3>
-                                <a href="#" className="text-[11px] font-semibold text-blue-600 hover:underline">View Departments →</a>
-                            </div>
-                            <div className="space-y-5">
-                                <DeptRow
-                                    icon={<Activity className="w-4 h-4 text-blue-600" />}
-                                    name="Cardiology"
-                                    patients="42 patients"
-                                    doctors="8 doctors"
-                                    pct={68}
-                                    barColor="bg-blue-600"
-                                />
-                                <DeptRow
-                                    icon={
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/>
-                                            <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/>
-                                        </svg>
-                                    }
-                                    name="Neurology"
-                                    patients="28 patients"
-                                    doctors="5 doctors"
-                                    pct={56}
-                                    barColor="bg-blue-400"
-                                />
-                                <DeptRow
-                                    icon={
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M12 4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z"/>
-                                            <path d="M4.9 6.1a2 2 0 0 0-1.4 3.4l8.5 8.5a2 2 0 0 0 3.4-1.4V15"/>
-                                            <path d="M19.1 6.1a2 2 0 0 1 1.4 3.4l-8.5 8.5a2 2 0 0 1-3.4-1.4V15"/>
-                                        </svg>
-                                    }
-                                    name="Orthopedics"
-                                    patients="36 patients"
-                                    doctors="6 doctors"
-                                    pct={72}
-                                    barColor="bg-orange-500"
-                                />
-                                <DeptRow
-                                    icon={<Stethoscope className="w-4 h-4 text-emerald-600" />}
-                                    name="General Medicine"
-                                    patients="64 patients"
-                                    doctors="12 doctors"
-                                    pct={80}
-                                    barColor="bg-emerald-500"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Hospital Capacity */}
-                        <div className="col-span-1 bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                            <div className="mb-5">
-                                <h3 className="text-base font-bold text-slate-900">Hospital Capacity</h3>
-                                <p className="text-xs text-slate-500 mt-0.5">Real-time occupancy status</p>
-                            </div>
-                            <div className="space-y-6">
-                                <CapacityRow label="General Beds" used="84" total="110" pct={76} barColor="bg-blue-600" />
-                                <CapacityRow label="ICU" used="18" total="24" pct={75} barColor="bg-red-500" />
-                                <CapacityRow label="Emergency" used="12" total="20" pct={60} barColor="bg-orange-500" />
-                                <CapacityRow label="Private Rooms" used="24" total="26" pct={92} barColor="bg-teal-500" />
-                            </div>
-                        </div>
-
-                        {/* Important Alerts */}
-                        <div className="col-span-1 bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                            <div className="flex justify-between items-start mb-5">
-                                <div>
-                                    <h3 className="text-base font-bold text-slate-900">Important Alerts</h3>
-                                    <p className="text-xs text-slate-500 mt-0.5">Critical notifications & alerts</p>
-                                </div>
-                                <a href="#" className="text-[11px] font-semibold text-blue-600 hover:underline">View All →</a>
-                            </div>
-                            <div className="space-y-5">
-                                <AlertItem icon={<Pill className="w-4 h-4 text-red-600" />} iconBg="bg-red-50" title="Low Pharmacy Stock" desc="12 medicines are below minimum stock level." time="10 min ago" />
-                                <AlertItem icon={<FileBox className="w-4 h-4 text-orange-600" />} iconBg="bg-orange-50" title="Pending Insurance Claims" desc="8 insurance claims require attention." time="25 min ago" />
-                                <AlertItem icon={<Calendar className="w-4 h-4 text-blue-600" />} iconBg="bg-blue-50" title="Upcoming Appointments" desc="3 appointments begin within the next hour." time="35 min ago" />
-                            </div>
-                        </div>
-                    </div>
-                </main>
-            </div>
+            {/* MULTI-STEP ADD STAFF MEMBER DRAWER MODAL */}
+            <AddMedicModal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                onStaffAdded={handleStaffAdded}
+            />
         </div>
     );
 }
 
-// Subcomponents
+/* =========================================
+   HELPER COMPONENTS
+   ========================================= */
 
-function NavItem({ icon, label }: { icon: React.ReactNode; label: string }) {
+function NavItem({ icon, label, active = false }: { icon: React.ReactNode; label: string; active?: boolean }) {
     return (
         <a
             href="#"
-            className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-slate-800/50 rounded-lg transition-colors"
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg mb-0.5 transition-colors ${
+                active
+                    ? 'bg-slate-800 text-white font-medium shadow-2xs'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+            }`}
         >
             {icon}
-            <span className="text-sm font-medium">{label}</span>
+            <span className="text-xs">{label}</span>
         </a>
     );
 }
 
-function StatCard({ icon, iconBg, title, value, trend, trendUp, chartColor }: any) {
+function StatCard({ title, value, trend, icon, trendStatus = 'good' }: any) {
     return (
-        <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-sm flex flex-col justify-between">
-            <div className="flex justify-between items-start">
-                <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                        <div className={`p-1.5 rounded-lg ${iconBg}`}>{icon}</div>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{title}</span>
+        <div className="bg-white p-5 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+            <div className="flex justify-between items-start mb-2">
+                <h3 className="text-[11px] font-bold text-slate-400 tracking-wider uppercase">{title}</h3>
+                <div className="p-1.5 bg-teal-50/70 rounded-lg">{icon}</div>
+            </div>
+            <div>
+                <p className="text-2xl font-bold text-slate-900 tracking-tight">{value}</p>
+                <div className="flex items-center gap-1.5 mt-1">
+                    {trendStatus === 'good' && <div className="w-1.5 h-1.5 rounded-full bg-teal-500"></div>}
+                    {trendStatus === 'warning' && <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>}
+                    <p className="text-[11px] text-slate-500">{trend}</p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function TableRow({
+    name,
+    email,
+    id,
+    role,
+    roleColor,
+    dept,
+    subDept,
+    status,
+    date,
+    initials,
+    avatarUrl,
+    isNew = false
+}: any) {
+    const isSabbatical = status === 'On Sabbatical';
+
+    return (
+        <tr className={`hover:bg-slate-50/80 transition-colors group ${isNew ? 'bg-teal-50/40' : ''}`}>
+            <td className="p-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-slate-200 border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-700 overflow-hidden shrink-0">
+                        {avatarUrl ? (
+                            <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
+                        ) : (
+                            initials
+                        )}
                     </div>
-                    <div className="text-3xl font-bold text-slate-900 mt-2">{value}</div>
-                </div>
-            </div>
-            <div className="flex justify-between items-end mt-4">
-                <div className="flex items-center gap-1 text-[11px] font-medium text-emerald-600">
-                    {trendUp && <TrendingUp className="w-3 h-3" />}
-                    {trend}
-                </div>
-                <svg width="60" height="20" viewBox="0 0 60 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M0 15 L10 12 L20 18 L30 8 L40 10 L50 4 L60 2" stroke={chartColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-            </div>
-        </div>
-    );
-}
-
-function StatCardWithProgress({ icon, iconBg, title, value, subLeft, subRight, progress, progressColor }: any) {
-    return (
-        <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-sm flex flex-col justify-between">
-            <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                    <div className={`p-1.5 rounded-lg ${iconBg}`}>{icon}</div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{title}</span>
-                </div>
-                <div className="text-3xl font-bold text-slate-900 mt-2">{value}</div>
-            </div>
-            <div className="mt-4 space-y-2">
-                <div className="flex justify-between text-[11px] font-medium text-slate-500">
-                    <span className={progressColor === 'bg-emerald-500' ? "text-emerald-600" : "text-red-500"}>{subLeft}</span>
-                    <span>{subRight}</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-1.5">
-                    <div className={`${progressColor} h-1.5 rounded-full`} style={{ width: `${progress}%` }}></div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function TimelineItem({ time, dotColor, doctor, dept, patient, status, statusColor }: any) {
-    return (
-        <div className="flex items-start gap-4">
-            <div className="text-xs font-semibold text-slate-700 w-16 pt-0.5 text-right shrink-0">{time}</div>
-            <div className="relative flex flex-col items-center">
-                <div className={`w-2.5 h-2.5 rounded-full ${dotColor} z-10 ring-4 ring-white mt-1`}></div>
-            </div>
-            <div className="flex-1 flex justify-between items-center pb-4 border-b border-slate-50 last:border-0 last:pb-0">
-                <div>
-                    <h4 className="text-sm font-bold text-slate-900">{doctor}</h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">{dept} • <span className="font-medium text-slate-700">{patient}</span></p>
-                </div>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${statusColor}`}>
-                    {status}
-                </span>
-            </div>
-        </div>
-    );
-}
-
-function TableRow({ name, id, dept, doctor, type, status, statusColor, date }: any) {
-    return (
-        <tr className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50">
-            <td className="py-3">
-                <div className="flex items-center gap-2">
-                    <img src={`https://ui-avatars.com/api/?name=${name.replace(' ', '+')}&background=random&color=fff&size=32`} alt={name} className="w-6 h-6 rounded-full" />
-                    <span className="font-semibold text-slate-900">{name}</span>
+                    <div>
+                        <div className="flex items-center gap-1.5">
+                            <p className="font-semibold text-slate-900">{name}</p>
+                            {isNew && (
+                                <span className="text-[9px] bg-teal-100 text-teal-800 font-bold px-1.5 py-0.5 rounded">NEW</span>
+                            )}
+                        </div>
+                        <p className="text-[11px] text-slate-400">{email}</p>
+                    </div>
                 </div>
             </td>
-            <td className="py-3 text-slate-600">{id}</td>
-            <td className="py-3 text-slate-600">{dept}</td>
-            <td className="py-3 text-slate-900 font-medium">{doctor}</td>
-            <td className="py-3 text-slate-600">{type}</td>
-            <td className="py-3">
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${statusColor}`}>
-                    {status}
+            <td className="p-4 font-mono text-[11px] text-slate-600 font-medium">{id}</td>
+            <td className="p-4">
+                <span className={`inline-flex px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${roleColor}`}>
+                    {role}
                 </span>
             </td>
-            <td className="py-3 text-slate-600">{date}</td>
-            <td className="py-3 text-right">
-                <button className="p-1 hover:bg-slate-100 rounded text-slate-400">
-                    <MoreHorizontal className="w-4 h-4" />
+            <td className="p-4">
+                <p className="font-semibold text-slate-900">{dept}</p>
+                <p className="text-[11px] text-slate-400">{subDept}</p>
+            </td>
+            <td className="p-4">
+                <div className="flex items-center gap-1.5">
+                    <span className={`w-1.5 h-1.5 rounded-full ${isSabbatical ? 'bg-slate-400' : 'bg-teal-500'}`} />
+                    <span className={`text-xs font-medium ${isSabbatical ? 'text-slate-600' : 'text-teal-700'}`}>
+                        {status}
+                    </span>
+                </div>
+            </td>
+            <td className="p-4 text-slate-500 text-xs">{date}</td>
+            <td className="p-4 text-right">
+                <button className="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    <MoreVertical size={16} />
                 </button>
             </td>
         </tr>
     );
 }
 
-function QuickAction({ icon, label }: any) {
-    return (
-        <button className="flex flex-col items-center justify-center gap-2 p-4 border border-slate-100 rounded-xl hover:border-slate-200 hover:shadow-sm transition-all bg-white group">
-            <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-slate-100 transition-colors">
-                {icon}
-            </div>
-            <span className="text-[11px] font-semibold text-slate-700 text-center">{label}</span>
-        </button>
-    );
-}
-
-function DeptRow({ icon, name, patients, doctors, pct, barColor }: any) {
-    return (
-        <div className="flex items-center gap-4">
-            <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
-                {icon}
-            </div>
-            <div className="flex-1 space-y-1.5">
-                <div className="flex justify-between items-center text-sm">
-                    <span className="font-bold text-slate-900">{name}</span>
-                    <span className="font-bold text-slate-900">{pct}%</span>
-                </div>
-                <div className="flex justify-between items-center text-[11px] text-slate-500">
-                    <span>{patients} <span className="mx-1">•</span> {doctors}</span>
-                    <div className="w-24 bg-slate-100 rounded-full h-1.5 ml-2">
-                        <div className={`${barColor} h-1.5 rounded-full`} style={{ width: `${pct}%` }}></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function CapacityRow({ label, used, total, pct, barColor }: any) {
-    return (
-        <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-slate-700 w-28">{label}</span>
-            <div className="flex-1 px-4 flex items-center">
-                <span className="text-xs font-semibold text-slate-900 w-12">{used} <span className="text-slate-400 font-normal">/ {total}</span></span>
-                <div className="flex-1 bg-slate-100 rounded-full h-1.5 mx-3">
-                    <div className={`${barColor} h-1.5 rounded-full`} style={{ width: `${pct}%` }}></div>
-                </div>
-            </div>
-            <span className="text-xs font-bold text-slate-900 w-8 text-right">{pct}%</span>
-        </div>
-    );
-}
-
-function AlertItem({ icon, iconBg, title, desc, time }: any) {
-    return (
-        <div className="flex items-start gap-3">
-            <div className={`p-2 rounded-lg ${iconBg} shrink-0 mt-0.5`}>
-                {icon}
-            </div>
-            <div className="flex-1">
-                <h4 className="text-xs font-bold text-slate-900">{title}</h4>
-                <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">{desc}</p>
-            </div>
-            <div className="flex items-center gap-1 text-[10px] font-medium text-slate-400 shrink-0">
-                {time} <ChevronDown className="w-3 h-3 -rotate-90" />
-            </div>
-        </div>
-    );
-}
