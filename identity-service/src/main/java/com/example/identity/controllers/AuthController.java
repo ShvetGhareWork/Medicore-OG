@@ -1,10 +1,8 @@
 package com.example.identity.controllers;
 
-import com.example.identity.dto.LoginRequestDto;
-import com.example.identity.dto.LoginResponseDto;
-import com.example.identity.dto.SignUpRequestDto;
-import com.example.identity.dto.SignUpResponseDto;
+import com.example.identity.dto.*;
 import com.example.identity.security.AuthService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,5 +27,10 @@ public class AuthController {
     @PostMapping("/signup")
     public ResponseEntity<SignUpResponseDto> signup(@RequestBody SignUpRequestDto signUpRequestDto) {
         return ResponseEntity.ok(authService.signup(signUpRequestDto));
+    }
+
+    @PostMapping("/badge-login")
+    public ResponseEntity<LoginResponseDto> badgeLogin(@Valid @RequestBody BadgeLoginRequest badgeLoginRequest) {
+        return ResponseEntity.ok(authService.badgeLogin(badgeLoginRequest));
     }
 }
