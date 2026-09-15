@@ -8,6 +8,7 @@ import {
     Search, ArrowRight, ArrowLeft, Sparkles, CheckCircle2,
     Calendar, Phone, Mail, User, Building, Award, Key, QrCode, Trash2
 } from 'lucide-react';
+import { createStaff, CreateStaffPayload } from '../../lib/api/staffApi';
 
 export interface StaffMember {
     name: string;
@@ -37,6 +38,8 @@ export function AddMedicModal({ isOpen, onClose, onStaffAdded }: AddMedicModalPr
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [createdStaffResult, setCreatedStaffResult] = useState<any | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Form State
@@ -74,6 +77,7 @@ export function AddMedicModal({ isOpen, onClose, onStaffAdded }: AddMedicModalPr
         if (step < 4) {
             setDirection(1);
             setStep(s => s + 1);
+            setErrorMessage(null);
         }
     };
 
@@ -81,20 +85,62 @@ export function AddMedicModal({ isOpen, onClose, onStaffAdded }: AddMedicModalPr
         if (step > 1) {
             setDirection(-1);
             setStep(s => s - 1);
+            setErrorMessage(null);
         }
     };
 
-    const handleFinalSubmit = () => {
+    const handleFinalSubmit = async () => {
+        setErrorMessage(null);
         setIsGenerating(true);
-        setTimeout(() => {
+
+        const roleMap: Record<string, string> = {
+            Doctor: 'DOCTOR',
+            Nurse: 'NURSE',
+            Pathologist: 'PATHOLOGIST',
+            'Insurance Coord.': 'INSURANCE_COORDINATOR',
+            Administrative: 'ADMINISTRATIVE',
+            'Lab Technician': 'LAB_TECHNICIAN'
+        };
+
+        const accessLevelMap: Record<string, string> = {
+            'Elevated Access': 'ELEVATED',
+            'Clinical Staff Access': 'STANDARD',
+            'Administrative Access': 'STANDARD',
+            'Read-Only Medical Access': 'STANDARD'
+        };
+
+        const loginMethodMap: Record<string, string> = {
+            'Badge / QR Login': 'BADGE_QR',
+            'Single Sign-On (SSO)': 'PASSWORD',
+            'FIDO2 Hardware Key': 'PASSWORD'
+        };
+
+        const payload: CreateStaffPayload = {
+            fullName: formData.fullName,
+            email: formData.email,
+            contactNumber: formData.phone,
+            dateOfBirth: formData.dob,
+            role: roleMap[formData.role] || 'DOCTOR',
+            department: formData.department,
+            designation: formData.designation,
+            reportingToId: null,
+            accessLevel: accessLevelMap[formData.accessLevel] || 'ELEVATED',
+            loginMethod: loginMethodMap[formData.loginMethod] || 'BADGE_QR',
+            temporaryPassword: 'TempPassword123!',
+            photoUrl: avatarPreview || undefined
+        };
+
+        try {
+            const result = await createStaff(payload);
+            setCreatedStaffResult(result);
             setIsGenerating(false);
             setIsSuccess(true);
 
             // Generate initials
-            const nameParts = formData.fullName.replace(/^(Dr\.|Mr\.|Mrs\.|Ms\.|Prof\.)\s*/i, '').trim().split(' ');
+            const nameParts = (result.fullName || formData.fullName).replace(/^(Dr\.|Mr\.|Mrs\.|Ms\.|Prof\.)\s*/i, '').trim().split(' ');
             const initials = nameParts.length >= 2
                 ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
-                : formData.fullName.slice(0, 2).toUpperCase();
+                : (result.fullName || formData.fullName).slice(0, 2).toUpperCase();
 
             // Generate Role Color
             const roleColorMap: Record<string, string> = {
@@ -106,17 +152,14 @@ export function AddMedicModal({ isOpen, onClose, onStaffAdded }: AddMedicModalPr
                 'Lab Technician': 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
             };
 
-            const randomIdNum = Math.floor(100 + Math.random() * 900);
-            const prefix = formData.role === 'Doctor' ? 'DOC' : formData.role === 'Nurse' ? 'NRS' : formData.role === 'Pathologist' ? 'LAB' : 'STF';
-
             const newStaff: StaffMember = {
-                name: formData.fullName,
-                email: formData.email,
-                id: `${prefix}-2026-0${randomIdNum}`,
+                name: result.fullName || formData.fullName,
+                email: result.email || formData.email,
+                id: result.staffId,
                 role: formData.role,
                 roleColor: roleColorMap[formData.role] || 'bg-slate-100 text-slate-700',
-                dept: formData.department.split('&')[0].trim(),
-                subDept: formData.designation,
+                dept: (result.department || formData.department).split('&')[0].trim(),
+                subDept: result.designation || formData.designation,
                 status: 'Active',
                 date: 'Just Now',
                 initials: initials,
@@ -127,14 +170,20 @@ export function AddMedicModal({ isOpen, onClose, onStaffAdded }: AddMedicModalPr
                 if (onStaffAdded) onStaffAdded(newStaff);
                 handleReset();
                 onClose();
-            }, 1000);
-        }, 800);
+            }, 2500);
+        } catch (err: any) {
+            console.error("Error creating staff:", err);
+            setIsGenerating(false);
+            setErrorMessage(err.message || 'Failed to create staff member.');
+        }
     };
 
     const handleReset = () => {
         setStep(1);
         setIsSuccess(false);
         setIsGenerating(false);
+        setErrorMessage(null);
+        setCreatedStaffResult(null);
     };
 
     const stepVariants = {
@@ -247,21 +296,47 @@ export function AddMedicModal({ isOpen, onClose, onStaffAdded }: AddMedicModalPr
 
                         {/* 2. SCROLLABLE STEP FORM BODY */}
                         <div className="flex-1 overflow-y-auto px-6 py-5 bg-white relative">
+                            {errorMessage && (
+                                <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium flex items-center justify-between">
+                                    <span>{errorMessage}</span>
+                                    <button onClick={() => setErrorMessage(null)} className="text-rose-500 hover:text-rose-800">
+                                        <X size={14} />
+                                    </button>
+                                </div>
+                            )}
+
                             <AnimatePresence custom={direction} mode="wait">
                                 {isSuccess ? (
                                     <motion.div
                                         key="success"
                                         initial={{ opacity: 0, scale: 0.95 }}
                                         animate={{ opacity: 1, scale: 1 }}
-                                        className="h-full flex flex-col items-center justify-center text-center p-6"
+                                        className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4"
                                     >
-                                        <div className="w-16 h-16 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center mb-4 ring-8 ring-teal-50/50 animate-bounce">
+                                        <div className="w-16 h-16 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center ring-8 ring-teal-50/50 animate-bounce">
                                             <CheckCircle2 size={36} />
                                         </div>
-                                        <h3 className="text-xl font-bold text-slate-900">Staff Member Added!</h3>
-                                        <p className="text-sm text-slate-500 mt-1 max-w-xs">
-                                            Digital RFID credentials and profile for <b>{formData.fullName}</b> have been issued successfully.
-                                        </p>
+                                        <div>
+                                            <h3 className="text-xl font-bold text-slate-900">Staff Member Added!</h3>
+                                            <p className="text-sm text-slate-500 mt-1 max-w-xs">
+                                                Digital RFID credentials and profile for <b>{formData.fullName}</b> have been issued successfully.
+                                            </p>
+                                        </div>
+
+                                        {createdStaffResult && (
+                                            <div className="p-4 rounded-xl border border-teal-200 bg-teal-50/40 text-left w-full space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Generated Staff ID</span>
+                                                    <span className="text-sm font-mono font-bold text-teal-800">{createdStaffResult.staffId}</span>
+                                                </div>
+                                                {createdStaffResult.badgeToken && (
+                                                    <div className="flex items-center justify-between pt-1 border-t border-teal-200/60">
+                                                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Badge Token</span>
+                                                        <span className="text-xs font-mono font-semibold text-slate-700 truncate max-w-[200px]">{createdStaffResult.badgeToken}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </motion.div>
                                 ) : (
                                     <motion.div
@@ -597,7 +672,7 @@ export function AddMedicModal({ isOpen, onClose, onStaffAdded }: AddMedicModalPr
                                                 {/* Digital RFID Badge Preview Card */}
                                                 <div className="p-4 rounded-xl border border-teal-200 bg-gradient-to-br from-teal-50/70 via-white to-slate-50 relative overflow-hidden shadow-sm">
                                                     <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/10 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none" />
-                                                    
+
                                                     <div className="flex items-center gap-4">
                                                         <div className="w-14 h-14 rounded-full bg-teal-700 text-white flex items-center justify-center font-bold text-lg ring-4 ring-white shadow-sm overflow-hidden shrink-0">
                                                             {avatarPreview ? (
@@ -617,7 +692,7 @@ export function AddMedicModal({ isOpen, onClose, onStaffAdded }: AddMedicModalPr
                                                                 </span>
                                                             </div>
                                                             <p className="text-xs text-slate-500 mt-0.5 font-mono">
-                                                                DOC-2026-0350 • {formData.designation}
+                                                                Auto-Generated Staff ID • {formData.designation}
                                                             </p>
                                                         </div>
                                                     </div>
@@ -740,4 +815,4 @@ export default function AddMedicFormPage() {
             <AddMedicModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
         </div>
     );
-}
+}

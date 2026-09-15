@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
     Search, Bell, Plus, Users, ClipboardCheck, Clock, PieChart,
     ChevronDown, Filter, RefreshCw, MoreVertical, LayoutDashboard,
@@ -9,6 +9,7 @@ import {
     Download, Sparkles
 } from 'lucide-react';
 import { AddMedicModal, StaffMember } from '../addmedicformpage/AddMedicFormPage';
+import { getStaffList } from '../../lib/api/staffApi';
 
 const INITIAL_STAFF: StaffMember[] = [
     {
@@ -75,7 +76,7 @@ const INITIAL_STAFF: StaffMember[] = [
         roleColor: 'bg-teal-50 text-teal-700 border border-teal-200/60',
         dept: 'Orthopedics',
         subDept: 'Associate Specialist',
-        status: 'On Sabbatical',
+        status: 'Inactive',
         statusColor: 'text-slate-600 bg-slate-100',
         statusDot: 'bg-slate-400',
         date: '09 May 2024',
@@ -97,16 +98,98 @@ const INITIAL_STAFF: StaffMember[] = [
     }
 ];
 
+function mapApiItemToStaffMember(item: any): StaffMember {
+    const roleColorMap: Record<string, string> = {
+        DOCTOR: 'bg-teal-50 text-teal-700 border border-teal-200/60',
+        NURSE: 'bg-indigo-50 text-indigo-700 border border-indigo-200/60',
+        PATHOLOGIST: 'bg-blue-50 text-blue-700 border border-blue-200/60',
+        INSURANCE_COORDINATOR: 'bg-amber-50 text-amber-700 border border-amber-200/60',
+        ADMINISTRATIVE: 'bg-purple-50 text-purple-700 border border-purple-200/60',
+        LAB_TECHNICIAN: 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+    };
+
+    const roleDisplayMap: Record<string, string> = {
+        DOCTOR: 'Doctor',
+        NURSE: 'Nurse',
+        PATHOLOGIST: 'Pathologist',
+        INSURANCE_COORDINATOR: 'Insurance Coord.',
+        ADMINISTRATIVE: 'Administrative',
+        LAB_TECHNICIAN: 'Lab Technician',
+        PATIENT: 'Patient',
+        ADMIN: 'Admin'
+    };
+
+    const nameParts = (item.fullName || '').replace(/^(Dr\.|Mr\.|Mrs\.|Ms\.|Prof\.)\s*/i, '').trim().split(' ');
+    const initials = nameParts.length >= 2
+        ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
+        : (item.fullName || 'ST').slice(0, 2).toUpperCase();
+
+    const roleStr = item.role || 'DOCTOR';
+    const statusStr = item.status === 'INACTIVE' ? 'Inactive' : item.status === 'PENDING' ? 'Pending' : 'Active';
+
+    const formattedDate = item.createdAt
+        ? new Date(item.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        : 'Just Now';
+
+    return {
+        name: item.fullName || 'Unknown Staff',
+        email: item.email || '',
+        id: item.staffId || 'STF-0000',
+        role: roleDisplayMap[roleStr] || roleStr,
+        roleColor: roleColorMap[roleStr] || 'bg-slate-100 text-slate-700',
+        dept: item.department || 'General',
+        subDept: item.designation || '',
+        status: statusStr,
+        statusColor: statusStr === 'Active' ? 'text-teal-700 bg-teal-50' : 'text-slate-600 bg-slate-100',
+        statusDot: statusStr === 'Active' ? 'bg-teal-500' : 'bg-slate-400',
+        date: formattedDate,
+        initials: initials,
+        avatarUrl: item.photoUrl || undefined
+    };
+}
+
 export default function StaffDashboard() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [staffList, setStaffList] = useState<StaffMember[]>(INITIAL_STAFF);
+    const [totalElements, setTotalElements] = useState<number>(348);
+    const [totalPages, setTotalPages] = useState<number>(35);
+    const [isLoading, setIsLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedRole, setSelectedRole] = useState('All Roles');
     const [selectedDept, setSelectedDept] = useState('All Departments');
     const [selectedStatus, setSelectedStatus] = useState('All Statuses');
     const [activePage, setActivePage] = useState(1);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+    const fetchStaffData = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const data = await getStaffList({
+                role: selectedRole,
+                department: selectedDept,
+                status: selectedStatus,
+                search: searchQuery,
+                page: activePage - 1,
+                size: 10
+            });
+
+            if (data && data.content) {
+                const apiMembers = data.content.map(mapApiItemToStaffMember);
+                setStaffList(apiMembers);
+                setTotalElements(data.totalElements || apiMembers.length);
+                setTotalPages(data.totalPages || 1);
+            }
+        } catch (err) {
+            console.warn("API fetch unavailable, using current staff list:", err);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [selectedRole, selectedDept, selectedStatus, searchQuery, activePage]);
+
+    useEffect(() => {
+        fetchStaffData();
+    }, [fetchStaffData]);
 
     const showToast = (msg: string) => {
         setToastMessage(msg);
@@ -115,10 +198,12 @@ export default function StaffDashboard() {
 
     const handleStaffAdded = (newStaff: StaffMember) => {
         setStaffList(prev => [newStaff, ...prev]);
+        setTotalElements(prev => prev + 1);
         showToast(`Staff member "${newStaff.name}" added successfully!`);
+        fetchStaffData();
     };
 
-    // Filter Logic
+    // Client filter as fallback if offline
     const filteredStaff = useMemo(() => {
         return staffList.filter(staff => {
             const matchesSearch =
@@ -148,6 +233,7 @@ export default function StaffDashboard() {
         setSelectedRole('All Roles');
         setSelectedDept('All Departments');
         setSelectedStatus('All Statuses');
+        setActivePage(1);
         showToast('Filters reset to default');
     };
 
@@ -161,8 +247,6 @@ export default function StaffDashboard() {
         a.click();
         showToast('Staff directory exported successfully');
     };
-
-    const totalStaffCount = 348 + (staffList.length - INITIAL_STAFF.length);
 
     return (
         <div className="flex h-screen bg-slate-50 font-sans overflow-hidden text-slate-900">
@@ -337,7 +421,7 @@ export default function StaffDashboard() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <StatCard
                             title="TOTAL STAFF"
-                            value={totalStaffCount.toString()}
+                            value={totalElements.toString()}
                             trend="+12 this quarter"
                             trendStatus="good"
                             icon={<Users size={18} className="text-teal-700" />}
@@ -377,7 +461,10 @@ export default function StaffDashboard() {
                             <input
                                 type="text"
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    setActivePage(1);
+                                }}
                                 placeholder="Search staff by name, email, ID..."
                                 className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-teal-600"
                             />
@@ -388,7 +475,10 @@ export default function StaffDashboard() {
                             <div className="relative">
                                 <select
                                     value={selectedRole}
-                                    onChange={(e) => setSelectedRole(e.target.value)}
+                                    onChange={(e) => {
+                                        setSelectedRole(e.target.value);
+                                        setActivePage(1);
+                                    }}
                                     className="appearance-none bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer focus:outline-none"
                                 >
                                     <option value="All Roles">All Roles</option>
@@ -406,7 +496,10 @@ export default function StaffDashboard() {
                             <div className="relative">
                                 <select
                                     value={selectedDept}
-                                    onChange={(e) => setSelectedDept(e.target.value)}
+                                    onChange={(e) => {
+                                        setSelectedDept(e.target.value);
+                                        setActivePage(1);
+                                    }}
                                     className="appearance-none bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer focus:outline-none"
                                 >
                                     <option value="All Departments">All Departments</option>
@@ -424,12 +517,15 @@ export default function StaffDashboard() {
                             <div className="relative">
                                 <select
                                     value={selectedStatus}
-                                    onChange={(e) => setSelectedStatus(e.target.value)}
+                                    onChange={(e) => {
+                                        setSelectedStatus(e.target.value);
+                                        setActivePage(1);
+                                    }}
                                     className="appearance-none bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer focus:outline-none"
                                 >
                                     <option value="All Statuses">All Statuses</option>
                                     <option value="Active">Active</option>
-                                    <option value="On Sabbatical">On Sabbatical</option>
+                                    <option value="Inactive">Inactive</option>
                                 </select>
                                 <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                             </div>
@@ -439,7 +535,7 @@ export default function StaffDashboard() {
                                 title="Reset filters"
                                 className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer"
                             >
-                                <RefreshCw size={14} />
+                                <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
                             </button>
 
                             <button
@@ -469,7 +565,7 @@ export default function StaffDashboard() {
                                 {filteredStaff.length > 0 ? (
                                     filteredStaff.map((staff, idx) => (
                                         <TableRow
-                                            key={staff.id + idx}
+                                            key={staff.id + '-' + idx}
                                             name={staff.name}
                                             email={staff.email}
                                             id={staff.id}
@@ -498,15 +594,16 @@ export default function StaffDashboard() {
 
                         {/* Pagination Footer */}
                         <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-                            <div>Showing 1-{filteredStaff.length} of {totalStaffCount} staff members</div>
+                            <div>Showing 1-{filteredStaff.length} of {totalElements} staff members</div>
                             <div className="flex items-center gap-1">
                                 <button
                                     onClick={() => setActivePage(p => Math.max(1, p - 1))}
-                                    className="px-2.5 py-1 hover:bg-slate-100 rounded text-xs font-medium cursor-pointer"
+                                    disabled={activePage <= 1}
+                                    className="px-2.5 py-1 hover:bg-slate-100 rounded text-xs font-medium cursor-pointer disabled:opacity-50"
                                 >
                                     &lt; Previous
                                 </button>
-                                {[1, 2, 3].map(page => (
+                                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(page => (
                                     <button
                                         key={page}
                                         onClick={() => setActivePage(page)}
@@ -517,18 +614,11 @@ export default function StaffDashboard() {
                                         {page}
                                     </button>
                                 ))}
-                                <span className="px-1 text-slate-400">...</span>
+                                {totalPages > 5 && <span className="px-1 text-slate-400">...</span>}
                                 <button
-                                    onClick={() => setActivePage(58)}
-                                    className={`w-7 h-7 flex items-center justify-center rounded-md font-semibold text-xs cursor-pointer ${
-                                        activePage === 58 ? 'bg-[#111827] text-white' : 'hover:bg-slate-100 text-slate-700'
-                                    }`}
-                                >
-                                    58
-                                </button>
-                                <button
-                                    onClick={() => setActivePage(p => p + 1)}
-                                    className="px-2.5 py-1 hover:bg-slate-100 rounded text-xs font-medium cursor-pointer"
+                                    onClick={() => setActivePage(p => Math.min(totalPages, p + 1))}
+                                    disabled={activePage >= totalPages}
+                                    className="px-2.5 py-1 hover:bg-slate-100 rounded text-xs font-medium cursor-pointer disabled:opacity-50"
                                 >
                                     Next &gt;
                                 </button>
@@ -601,7 +691,7 @@ function TableRow({
     avatarUrl,
     isNew = false
 }: any) {
-    const isSabbatical = status === 'On Sabbatical';
+    const isInactive = status === 'Inactive';
 
     return (
         <tr className={`hover:bg-slate-50/80 transition-colors group ${isNew ? 'bg-teal-50/40' : ''}`}>
@@ -637,8 +727,8 @@ function TableRow({
             </td>
             <td className="p-4">
                 <div className="flex items-center gap-1.5">
-                    <span className={`w-1.5 h-1.5 rounded-full ${isSabbatical ? 'bg-slate-400' : 'bg-teal-500'}`} />
-                    <span className={`text-xs font-medium ${isSabbatical ? 'text-slate-600' : 'text-teal-700'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${isInactive ? 'bg-slate-400' : 'bg-teal-500'}`} />
+                    <span className={`text-xs font-medium ${isInactive ? 'text-slate-600' : 'text-teal-700'}`}>
                         {status}
                     </span>
                 </div>
@@ -652,4 +742,3 @@ function TableRow({
         </tr>
     );
 }
-

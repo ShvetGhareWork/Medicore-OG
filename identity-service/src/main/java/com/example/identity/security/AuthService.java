@@ -1,12 +1,10 @@
 package com.example.identity.security;
 
-import com.example.identity.dto.LoginRequestDto;
-import com.example.identity.dto.LoginResponseDto;
-import com.example.identity.dto.SignUpRequestDto;
-import com.example.identity.dto.SignUpResponseDto;
+import com.example.identity.dto.*;
 import com.example.identity.entity.User;
 import com.example.identity.entity.type.AuthProviderType;
 import com.example.identity.entity.type.RoleType;
+import com.example.identity.entity.type.StaffStatusType;
 import com.example.identity.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.http.ResponseEntity;
@@ -43,6 +41,20 @@ public class AuthService {
         User user = (User) authentication.getPrincipal();
         String token = authUtil.generateAccessToken(user);
 
+        return new LoginResponseDto(token, user.getId());
+    }
+
+    public LoginResponseDto badgeLogin(BadgeLoginRequest badgeLoginRequest) {
+        User user = userRepository.findByStaffIdAndBadgeToken(
+                badgeLoginRequest.getStaffId(),
+                badgeLoginRequest.getBadgeToken()
+        ).orElseThrow(() -> new BadCredentialsException("Invalid Staff ID or Badge Token"));
+
+        if (user.getStatus() != StaffStatusType.ACTIVE) {
+            throw new BadCredentialsException("Staff account is inactive or pending");
+        }
+
+        String token = authUtil.generateAccessToken(user);
         return new LoginResponseDto(token, user.getId());
     }
 
