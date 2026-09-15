@@ -3,8 +3,10 @@ package com.example.identity.security;
 import jakarta.servlet.Filter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -29,7 +31,11 @@ public class WebSecurityConfig {
     private final Oauth2SuccessHandler oAuth2SuccessHandler;
     private final HandlerExceptionResolver handlerExceptionResolver;
 
-    public WebSecurityConfig(JwtAuthFilter jwtAuthFilter, Oauth2SuccessHandler oAuth2SuccessHandler, HandlerExceptionResolver handlerExceptionResolver) {
+    public WebSecurityConfig(
+            JwtAuthFilter jwtAuthFilter,
+            Oauth2SuccessHandler oAuth2SuccessHandler,
+            @Qualifier("handlerExceptionResolver") @Lazy HandlerExceptionResolver handlerExceptionResolver
+    ) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.oAuth2SuccessHandler = oAuth2SuccessHandler;
         this.handlerExceptionResolver = handlerExceptionResolver;
