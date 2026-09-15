@@ -1,15 +1,15 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
     Search, Bell, Plus, Users, ClipboardCheck, Clock, PieChart,
     ChevronDown, Filter, RefreshCw, MoreVertical, LayoutDashboard,
     Calendar, Building2, UserPlus, Bed, FileText, Pill, FlaskConical,
     CreditCard, ShieldCheck, LineChart, Settings, HelpCircle, Menu, X,
-    Download, Sparkles
+    Download, Sparkles, Edit2, Trash2
 } from 'lucide-react';
 import { AddMedicModal, StaffMember } from '../addmedicformpage/AddMedicFormPage';
-import { getStaffList } from '../../lib/api/staffApi';
+import { getStaffList, deactivateStaff } from '../../lib/api/staffApi';
 
 const INITIAL_STAFF: StaffMember[] = [
     {
@@ -156,11 +156,22 @@ export default function StaffDashboard() {
     const [totalPages, setTotalPages] = useState<number>(35);
     const [isLoading, setIsLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [selectedRole, setSelectedRole] = useState('All Roles');
     const [selectedDept, setSelectedDept] = useState('All Departments');
     const [selectedStatus, setSelectedStatus] = useState('All Statuses');
     const [activePage, setActivePage] = useState(1);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
+    const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+
+    // Debounce search — wait 500ms after user stops typing before hitting the API
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchQuery);
+            setActivePage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     const fetchStaffData = useCallback(async () => {
         setIsLoading(true);
@@ -169,7 +180,7 @@ export default function StaffDashboard() {
                 role: selectedRole,
                 department: selectedDept,
                 status: selectedStatus,
-                search: searchQuery,
+                search: debouncedSearch,
                 page: activePage - 1,
                 size: 10
             });
@@ -185,7 +196,7 @@ export default function StaffDashboard() {
         } finally {
             setIsLoading(false);
         }
-    }, [selectedRole, selectedDept, selectedStatus, searchQuery, activePage]);
+    }, [selectedRole, selectedDept, selectedStatus, debouncedSearch, activePage]);
 
     useEffect(() => {
         fetchStaffData();
@@ -201,6 +212,25 @@ export default function StaffDashboard() {
         setTotalElements(prev => prev + 1);
         showToast(`Staff member "${newStaff.name}" added successfully!`);
         fetchStaffData();
+    };
+
+    const handleEdit = (staff: StaffMember) => {
+        setEditingStaff(staff);
+        showToast(`Editing "${staff.name}" — feature coming soon`);
+    };
+
+    const handleDelete = async (staff: StaffMember) => {
+        if (!confirm(`Deactivate "${staff.name}"? This will mark them as inactive.`)) return;
+        try {
+            // staffId is like "DOC-2026-0001", but API needs the numeric DB id.
+            // We pass staffId string; deactivateStaff accepts string|number.
+            await deactivateStaff(staff.id);
+            setStaffList(prev => prev.filter(s => s.id !== staff.id));
+            setTotalElements(prev => Math.max(0, prev - 1));
+            showToast(`"${staff.name}" has been deactivated.`);
+        } catch (err: any) {
+            showToast(`Failed to deactivate: ${err.message}`);
+        }
     };
 
     // Client filter as fallback if offline
@@ -580,6 +610,8 @@ export default function StaffDashboard() {
                                             initials={staff.initials}
                                             avatarUrl={staff.avatarUrl}
                                             isNew={staff.date === 'Just Now'}
+                                            onEdit={() => handleEdit(staff)}
+                                            onDelete={() => handleDelete(staff)}
                                         />
                                     ))
                                 ) : (
@@ -689,9 +721,25 @@ function TableRow({
     date,
     initials,
     avatarUrl,
-    isNew = false
+    isNew = false,
+    onEdit,
+    onDelete,
 }: any) {
     const isInactive = status === 'Inactive';
+    const [menuOpen, setMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        if (!menuOpen) return;
+        const handler = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [menuOpen]);
 
     return (
         <tr className={`hover:bg-slate-50/80 transition-colors group ${isNew ? 'bg-teal-50/40' : ''}`}>
@@ -735,9 +783,35 @@ function TableRow({
             </td>
             <td className="p-4 text-slate-500 text-xs">{date}</td>
             <td className="p-4 text-right">
-                <button className="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                    <MoreVertical size={16} />
-                </button>
+                <div className="relative inline-block" ref={menuRef}>
+                    <button
+                        onClick={() => setMenuOpen(o => !o)}
+                        className="text-slate-400 hover:text-slate-700 p-1.5 rounded-md hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                        title="Actions"
+                    >
+                        <MoreVertical size={16} />
+                    </button>
+
+                    {menuOpen && (
+                        <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                            <button
+                                onClick={() => { setMenuOpen(false); onEdit?.(); }}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
+                            >
+                                <Edit2 size={13} />
+                                Edit Details
+                            </button>
+                            <div className="mx-3 border-t border-slate-100" />
+                            <button
+                                onClick={() => { setMenuOpen(false); onDelete?.(); }}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                            >
+                                <Trash2 size={13} />
+                                Deactivate
+                            </button>
+                        </div>
+                    )}
+                </div>
             </td>
         </tr>
     );

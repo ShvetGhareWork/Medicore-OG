@@ -42,8 +42,8 @@ services:
       - SERVER_PORT=8081
       - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/Self-heal-arch
-      - GOOGLE_CLIENT_ID=${process.env.GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${process.env.GOOGLE_CLIENT_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
     networks:
       - hospital-network
     depends_on:
