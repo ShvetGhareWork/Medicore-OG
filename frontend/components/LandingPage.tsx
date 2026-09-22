@@ -9,7 +9,6 @@ import {
     useReducedMotion,
     type Variants,
 } from "framer-motion";
-import { Manrope, Inter } from "next/font/google";
 import {
     Activity,
     ArrowRight,
@@ -38,26 +37,10 @@ import {
 
 /* =========================================================
    FONTS
-   Manrope: display face, used sparingly for headings — has a
-   confident, slightly geometric feel that stays legible at
-   large sizes. Inter: body face, tuned for on-screen reading
-   at small sizes (better x-height / hinting than the previous
-   system-font fallback).
 ========================================================= */
 
-const manrope = Manrope({
-    subsets: ["latin"],
-    weight: ["500", "600", "700", "800"],
-    variable: "--font-manrope",
-    display: "swap",
-});
-
-const inter = Inter({
-    subsets: ["latin"],
-    weight: ["400", "500", "600", "700"],
-    variable: "--font-inter",
-    display: "swap",
-});
+const manrope = { variable: "font-sans" };
+const inter = { variable: "font-sans" };
 
 /* =========================================================
    DATA
@@ -220,7 +203,7 @@ export default function MediCoreLanding() {
 
     return (
         <main
-            className={`${manrope.variable} ${inter.variable} min-h-screen overflow-x-clip bg-white font-[family-name:var(--font-inter)] text-[#111827] antialiased`}
+            className="min-h-screen overflow-x-clip bg-white font-sans text-[#111827] antialiased"
         >
             {/* =====================================================
           NAVBAR
@@ -235,7 +218,7 @@ export default function MediCoreLanding() {
                         </div>
 
                         <div className="leading-none">
-                            <span className="font-[family-name:var(--font-manrope)] text-[22px] font-bold tracking-[-0.03em] text-[#0f172a] sm:text-[26px] lg:text-[28px]">
+                            <span className="text-[22px] font-bold tracking-[-0.03em] text-[#0f172a] sm:text-[26px] lg:text-[28px]">
                                 MediCore
                             </span>
 
@@ -336,7 +319,7 @@ export default function MediCoreLanding() {
                             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
                             className="lg:col-span-5"
                         >
-                            <h1 className="max-w-[650px] text-balance font-[family-name:var(--font-manrope)] text-[clamp(2.5rem,8vw,5.25rem)] font-extrabold leading-[1.02] tracking-[-0.045em] text-[#0f172a] sm:leading-[0.98]">
+                            <h1 className="max-w-[650px] text-balance text-[clamp(2.5rem,8vw,5.25rem)] font-extrabold leading-[1.02] tracking-[-0.045em] text-[#0f172a] sm:leading-[0.98]">
                                 Simplifying Healthcare.
                                 <br />
                                 <span className="text-[#0f766e]">
@@ -446,7 +429,7 @@ export default function MediCoreLanding() {
                                                     {title}
                                                 </p>
 
-                                                <p className="mt-2 font-[family-name:var(--font-manrope)] text-[19px] font-bold tracking-[-0.03em] text-[#0f172a] sm:text-[25px]">
+                                                <p className="mt-2 text-[19px] font-bold tracking-[-0.03em] text-[#0f172a] sm:text-[25px]">
                                                     {value}
                                                 </p>
 
@@ -593,7 +576,7 @@ export default function MediCoreLanding() {
                             Platform
                         </p>
 
-                        <h2 className="mt-3 text-balance font-[family-name:var(--font-manrope)] text-[clamp(1.75rem,6vw,3rem)] font-bold leading-tight tracking-[-0.04em] text-[#0f172a]">
+                        <h2 className="mt-3 text-balance text-[clamp(1.75rem,6vw,3rem)] font-bold leading-tight tracking-[-0.04em] text-[#0f172a]">
                             Everything Your Hospital Needs
                         </h2>
 
@@ -661,7 +644,7 @@ export default function MediCoreLanding() {
                                     Security
                                 </p>
 
-                                <h2 className="mt-3 max-w-sm text-balance font-[family-name:var(--font-manrope)] text-[clamp(1.75rem,5vw,2.7rem)] font-bold leading-tight tracking-[-0.035em]">
+                                <h2 className="mt-3 max-w-sm text-balance text-[clamp(1.75rem,5vw,2.7rem)] font-bold leading-tight tracking-[-0.035em]">
                                     Built for Healthcare Security
                                 </h2>
 
@@ -725,7 +708,7 @@ export default function MediCoreLanding() {
                                 Architecture
                             </p>
 
-                            <h2 className="mt-3 text-balance font-[family-name:var(--font-manrope)] text-[clamp(1.75rem,6vw,3rem)] font-bold leading-[1.08] tracking-[-0.04em] text-[#0f172a]">
+                            <h2 className="mt-3 text-balance text-[clamp(1.75rem,6vw,3rem)] font-bold leading-[1.08] tracking-[-0.04em] text-[#0f172a]">
                                 One Platform.
                                 <br />
                                 Every Workflow.
@@ -840,7 +823,7 @@ export default function MediCoreLanding() {
                         MediCore
                     </p>
 
-                    <h2 className="mx-auto mt-3 max-w-2xl text-balance font-[family-name:var(--font-manrope)] text-[clamp(1.9rem,7vw,3.5rem)] font-bold leading-[1.08] tracking-[-0.045em] text-[#0f172a]">
+                    <h2 className="mx-auto mt-3 max-w-2xl text-balance text-[clamp(1.9rem,7vw,3.5rem)] font-bold leading-[1.08] tracking-[-0.045em] text-[#0f172a]">
                         Build a Better Hospital
                         <br className="hidden sm:block" /> Experience.
                     </h2>
@@ -871,7 +854,7 @@ export default function MediCoreLanding() {
             <footer className="border-t border-slate-200 bg-white">
                 <div className="mx-auto flex max-w-[1440px] flex-col gap-5 px-4 py-7 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-12">
                     <div>
-                        <span className="font-[family-name:var(--font-manrope)] text-[22px] font-bold tracking-[-0.02em] text-[#0f172a]">
+                        <span className="text-[22px] font-bold tracking-[-0.02em] text-[#0f172a]">
                             MediCore
                         </span>
 
