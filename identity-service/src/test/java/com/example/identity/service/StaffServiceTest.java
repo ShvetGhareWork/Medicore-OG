@@ -2,8 +2,12 @@ package com.example.identity.service;
 
 import com.example.identity.dto.CreateStaffRequest;
 import com.example.identity.dto.StaffResponse;
+import com.example.identity.entity.Department;
+import com.example.identity.entity.Staff;
 import com.example.identity.entity.User;
 import com.example.identity.entity.type.*;
+import com.example.identity.repository.DepartmentRepository;
+import com.example.identity.repository.StaffRepository;
 import com.example.identity.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,11 +24,17 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class StaffServiceTest {
+
+    @Mock
+    private StaffRepository staffRepository;
+
+    @Mock
+    private DepartmentRepository departmentRepository;
 
     @Mock
     private UserRepository userRepository;
@@ -36,7 +46,7 @@ class StaffServiceTest {
 
     @BeforeEach
     void setUp() {
-        staffService = new StaffService(userRepository, passwordEncoder);
+        staffService = new StaffService(staffRepository, departmentRepository, userRepository, passwordEncoder);
     }
 
     @Test
@@ -54,34 +64,22 @@ class StaffServiceTest {
     void testGenerateStaffIdWhenNoExisting() {
         int year = Year.now().getValue();
         String pattern = "DOC-" + year + "-%";
-        when(userRepository.findStaffIdsForPrefixWithLock(pattern)).thenReturn(List.of());
+        when(staffRepository.findStaffIdsForPrefixWithLock(pattern)).thenReturn(List.of());
 
         String generatedId = staffService.generateStaffId(RoleType.DOCTOR);
         assertEquals("DOC-" + year + "-0001", generatedId);
-        verify(userRepository).findStaffIdsForPrefixWithLock(pattern);
+        verify(staffRepository).findStaffIdsForPrefixWithLock(pattern);
     }
 
     @Test
     void testGenerateStaffIdIncrementsMaxExistingSequence() {
         int year = Year.now().getValue();
         String pattern = "NRS-" + year + "-%";
-        when(userRepository.findStaffIdsForPrefixWithLock(pattern))
+        when(staffRepository.findStaffIdsForPrefixWithLock(pattern))
                 .thenReturn(List.of("NRS-" + year + "-0001", "NRS-" + year + "-0042", "NRS-" + year + "-0010"));
 
         String generatedId = staffService.generateStaffId(RoleType.NURSE);
         assertEquals("NRS-" + year + "-0043", generatedId);
-    }
-
-    @Test
-    void testGenerateBadgeTokenUniqueness() {
-        when(userRepository.existsByBadgeToken(anyString()))
-                .thenReturn(true) // First attempt collision
-                .thenReturn(false); // Second attempt unique
-
-        String token = staffService.generateBadgeToken();
-        assertNotNull(token);
-        assertFalse(token.isBlank());
-        verify(userRepository, times(2)).existsByBadgeToken(anyString());
     }
 
     @Test
@@ -101,21 +99,20 @@ class StaffServiceTest {
                 "http://example.com/photo.jpg"
         );
 
-        when(userRepository.findByUsername(request.getEmail())).thenReturn(Optional.empty());
+        when(staffRepository.existsByEmail(request.getEmail())).thenReturn(false);
         when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.empty());
         when(passwordEncoder.encode("tempPass123")).thenReturn("hashedPassword123");
+        when(departmentRepository.findByNameIgnoreCase("Cardiology")).thenReturn(Optional.of(new Department(1L, "Cardiology", "CARD")));
 
-        User savedUser = User.builder()
-                .id(100L)
-                .username(request.getEmail())
-                .email(request.getEmail())
-                .fullName(request.getFullName())
-                .staffId("DOC-2026-0001")
-                .badgeToken("badgeToken123")
-                .status(StaffStatusType.ACTIVE)
-                .build();
+        Staff savedStaff = new Staff();
+        savedStaff.setId(100L);
+        savedStaff.setStaffId("DOC-2026-0001");
+        savedStaff.setFullName(request.getFullName());
+        savedStaff.setEmail(request.getEmail());
+        savedStaff.setRole(RoleType.DOCTOR);
+        savedStaff.setStatus(StaffStatusType.ACTIVE);
 
-        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+        when(staffRepository.save(any(Staff.class))).thenReturn(savedStaff);
 
         StaffResponse response = staffService.createStaff(request);
 
@@ -123,15 +120,8 @@ class StaffServiceTest {
         assertEquals(100L, response.getId());
         assertEquals("DOC-2026-0001", response.getStaffId());
 
-        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(userCaptor.capture());
-
-        User capturedUser = userCaptor.getValue();
-        assertEquals("john.doe@medicore.org", capturedUser.getUsername());
-        assertEquals("john.doe@medicore.org", capturedUser.getEmail());
-        assertEquals("hashedPassword123", capturedUser.getPassword());
-        assertEquals(StaffStatusType.ACTIVE, capturedUser.getStatus());
-        assertEquals(1, capturedUser.getBadgeVersion());
+        verify(staffRepository).save(any(Staff.class));
+        verify(userRepository).save(any(User.class));
     }
 
     @Test
@@ -139,32 +129,29 @@ class StaffServiceTest {
         CreateStaffRequest request = new CreateStaffRequest();
         request.setEmail("john.doe@medicore.org");
 
-        when(userRepository.findByUsername(request.getEmail())).thenReturn(Optional.of(new User()));
+        when(staffRepository.existsByEmail(request.getEmail())).thenReturn(true);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> staffService.createStaff(request));
 
         assertTrue(ex.getMessage().contains("already exists"));
-        verify(userRepository, never()).save(any());
+        verify(staffRepository, never()).save(any());
     }
 
     @Test
-    void testDeactivateStaffIncrementsBadgeVersion() {
-        User user = User.builder()
-                .id(50L)
-                .staffId("DOC-2026-0010")
-                .status(StaffStatusType.ACTIVE)
-                .badgeVersion(1)
-                .build();
+    void testDeactivateStaff() {
+        Staff staff = new Staff();
+        staff.setId(50L);
+        staff.setStaffId("DOC-2026-0010");
+        staff.setEmail("john.doe@medicore.org");
+        staff.setStatus(StaffStatusType.ACTIVE);
 
-        when(userRepository.findById(50L)).thenReturn(Optional.of(user));
-        when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+        when(staffRepository.findById(50L)).thenReturn(Optional.of(staff));
+        when(staffRepository.save(any(Staff.class))).thenAnswer(i -> i.getArgument(0));
 
         StaffResponse response = staffService.deactivateStaff(50L);
 
-        assertEquals(StaffStatusType.INACTIVE, user.getStatus());
-        assertEquals(2, user.getBadgeVersion());
+        assertEquals(StaffStatusType.INACTIVE, staff.getStatus());
         assertEquals(StaffStatusType.INACTIVE, response.getStatus());
-        assertEquals(2, response.getBadgeVersion());
     }
 }

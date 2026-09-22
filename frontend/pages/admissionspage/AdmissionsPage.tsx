@@ -163,43 +163,43 @@ export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmi
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [createdResult, setCreatedResult] = useState<AdmissionPatient | null>(null);
 
-    // Admission Form State
+    // Admission Form State starts blank with no pre-filled mock defaults
     const [formData, setFormData] = useState({
         // Demographics
-        fullName: 'Eleanor Vance',
-        dob: '1988-06-14',
+        fullName: '',
+        dob: '',
         gender: 'Female',
-        phone: '+1 (555) 456-7890',
-        address: '742 Evergreen Terrace, Central District',
+        phone: '',
+        address: '',
 
         // Emergency Contact
-        emergencyName: 'Arthur Vance',
+        emergencyName: '',
         emergencyRelationship: 'Spouse',
-        emergencyPhone: '+1 (555) 890-1234',
+        emergencyPhone: '',
 
         // Triage & Assessment
-        bp: '128/82',
-        hr: '76 bpm',
-        temp: '98.6 °F',
-        spo2: '98%',
-        chiefComplaint: 'Shortness of breath and elevated heart rate following severe fatigue.',
+        bp: '',
+        hr: '',
+        temp: '',
+        spo2: '',
+        chiefComplaint: '',
         triageLevel: 'ESI Level 2 (Emergent)',
-        admittingDiagnosis: 'Acute Asthmatic Bronchospasm',
+        admittingDiagnosis: '',
 
         // Doctor & Dept
-        attendingDoctor: 'Dr. Marcus Vance',
-        doctorSpecialty: 'Cardiology',
+        attendingDoctor: '',
+        doctorSpecialty: '',
 
         // Ward & Bed
         ward: 'ICU',
-        roomOrBay: 'Bay #ICU-02',
-        bedNo: 'Bed #ICU-04',
-        expectedDischargeDate: '2026-09-02',
+        roomOrBay: '',
+        bedNo: '',
+        expectedDischargeDate: '',
 
         // Insurance & Clearance
         insuranceProvider: 'BlueCross Health',
-        policyNumber: 'BC-99042-881',
-        authorizationCode: 'AUTH-2026-X81',
+        policyNumber: '',
+        authorizationCode: '',
         confirmed: false
     });
 
@@ -247,14 +247,14 @@ export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmi
             vitalsSpO2: formData.spo2,
             chiefComplaint: formData.chiefComplaint,
             triageLevel: formData.triageLevel,
-            admittingDiagnosis: formData.admittingDiagnosis,
+            admittingDiagnosis: formData.admittingDiagnosis || formData.chiefComplaint,
 
             attendingDoctor: formData.attendingDoctor,
             doctorSpecialty: formData.doctorSpecialty,
 
             ward: formData.ward,
             roomOrBay: formData.roomOrBay,
-            bedNo: `${formData.ward} • ${formData.bedNo}`,
+            bedNo: formData.bedNo,
             expectedDischargeDate: formData.expectedDischargeDate,
 
             insuranceProvider: formData.insuranceProvider,
@@ -287,6 +287,38 @@ export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmi
         setIsSubmitting(false);
         setErrorMessage(null);
         setCreatedResult(null);
+        setFormData({
+            fullName: '',
+            dob: '',
+            gender: 'Female',
+            phone: '',
+            address: '',
+
+            emergencyName: '',
+            emergencyRelationship: 'Spouse',
+            emergencyPhone: '',
+
+            bp: '',
+            hr: '',
+            temp: '',
+            spo2: '',
+            chiefComplaint: '',
+            triageLevel: 'ESI Level 2 (Emergent)',
+            admittingDiagnosis: '',
+
+            attendingDoctor: '',
+            doctorSpecialty: '',
+
+            ward: 'ICU',
+            roomOrBay: '',
+            bedNo: '',
+            expectedDischargeDate: '',
+
+            insuranceProvider: 'BlueCross Health',
+            policyNumber: '',
+            authorizationCode: '',
+            confirmed: false
+        });
     };
 
     const stepVariants = {
@@ -527,7 +559,7 @@ export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmi
                                                         type="text"
                                                         value={formData.address}
                                                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                                                        placeholder="742 Evergreen Terrace, Central District"
+                                                        placeholder="Residential street address..."
                                                         className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-600/30 focus:border-teal-600 transition-all"
                                                     />
                                                 </div>
@@ -602,6 +634,7 @@ export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmi
                                                                 type="text"
                                                                 value={formData.bp}
                                                                 onChange={(e) => setFormData({ ...formData, bp: e.target.value })}
+                                                                placeholder="120/80"
                                                                 className="w-full mt-1 bg-white border border-slate-200 px-2 py-1 rounded text-xs font-bold text-slate-900"
                                                             />
                                                         </div>
@@ -611,6 +644,7 @@ export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmi
                                                                 type="text"
                                                                 value={formData.hr}
                                                                 onChange={(e) => setFormData({ ...formData, hr: e.target.value })}
+                                                                placeholder="75 bpm"
                                                                 className="w-full mt-1 bg-white border border-slate-200 px-2 py-1 rounded text-xs font-bold text-slate-900"
                                                             />
                                                         </div>
@@ -620,6 +654,7 @@ export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmi
                                                                 type="text"
                                                                 value={formData.temp}
                                                                 onChange={(e) => setFormData({ ...formData, temp: e.target.value })}
+                                                                placeholder="98.6 °F"
                                                                 className="w-full mt-1 bg-white border border-slate-200 px-2 py-1 rounded text-xs font-bold text-slate-900"
                                                             />
                                                         </div>
@@ -629,6 +664,7 @@ export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmi
                                                                 type="text"
                                                                 value={formData.spo2}
                                                                 onChange={(e) => setFormData({ ...formData, spo2: e.target.value })}
+                                                                placeholder="98%"
                                                                 className="w-full mt-1 bg-white border border-slate-200 px-2 py-1 rounded text-xs font-bold text-slate-900"
                                                             />
                                                         </div>
@@ -772,7 +808,7 @@ export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmi
                                                             type="text"
                                                             value={formData.bedNo}
                                                             onChange={(e) => setFormData({ ...formData, bedNo: e.target.value })}
-                                                            placeholder="Bed #ICU-04"
+                                                            placeholder="Bed #01"
                                                             className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-600/30 focus:border-teal-600 transition-all"
                                                         />
                                                     </div>
@@ -822,7 +858,7 @@ export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmi
                                                                 type="text"
                                                                 value={formData.policyNumber}
                                                                 onChange={(e) => setFormData({ ...formData, policyNumber: e.target.value })}
-                                                                placeholder="BC-99042-881"
+                                                                placeholder="Policy / Member ID"
                                                                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-600/30 focus:border-teal-600 transition-all"
                                                             />
                                                         </div>
@@ -834,7 +870,7 @@ export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmi
                                                                 type="text"
                                                                 value={formData.authorizationCode}
                                                                 onChange={(e) => setFormData({ ...formData, authorizationCode: e.target.value })}
-                                                                placeholder="AUTH-2026-X81"
+                                                                placeholder="Pre-auth code"
                                                                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-600/30 focus:border-teal-600 transition-all"
                                                             />
                                                         </div>
@@ -850,7 +886,7 @@ export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmi
                                                 <div className="p-4 rounded-xl border border-teal-200 bg-gradient-to-br from-teal-50/70 via-white to-slate-50 relative overflow-hidden shadow-sm">
                                                     <div className="flex items-center gap-4">
                                                         <div className="w-14 h-14 rounded-full bg-teal-700 text-white flex items-center justify-center font-bold text-lg ring-4 ring-white shadow-sm shrink-0">
-                                                            {formData.fullName.slice(0, 2).toUpperCase()}
+                                                            {(formData.fullName || 'PT').slice(0, 2).toUpperCase()}
                                                         </div>
 
                                                         <div className="flex-1 min-w-0">
@@ -863,7 +899,7 @@ export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmi
                                                                 </span>
                                                             </div>
                                                             <p className="text-xs text-slate-500 mt-0.5 font-mono">
-                                                                Auto-MRN • {formData.bedNo} • {formData.attendingDoctor}
+                                                                Auto-MRN • {formData.bedNo || 'Unassigned'} • {formData.attendingDoctor || 'Unassigned'}
                                                             </p>
                                                         </div>
                                                     </div>
