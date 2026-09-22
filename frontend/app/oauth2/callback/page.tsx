@@ -15,10 +15,15 @@ function CallbackHandler() {
     const error = searchParams.get("error");
 
     if (token) {
+      // 1. Set cookie for Next.js Server-Side Middleware
+      document.cookie = `jwt_token=${token}; path=/; max-age=86400; SameSite=Lax`;
+
+      // 2. Keep localStorage for Client-Side API calls
       localStorage.setItem("token", token);
       if (userId) {
         localStorage.setItem("userId", userId);
       }
+
       router.push("/dashboard");
     } else if (error) {
       console.error("OAuth2 error:", error);
