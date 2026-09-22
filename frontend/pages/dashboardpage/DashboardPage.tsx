@@ -307,12 +307,12 @@ export default function StaffDashboard() {
 
                     <div>
                         <div className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 tracking-wider">OPERATIONS</div>
-                        <NavItem icon={<Users size={17} />} label="Patients" />
-                        <NavItem icon={<Calendar size={17} />} label="Appointments" />
-                        <NavItem icon={<UserPlus size={17} />} label="Doctors / Staff" active />
-                        <NavItem icon={<Building2 size={17} />} label="Departments" />
-                        <NavItem icon={<UserPlus size={17} />} label="Admissions" />
-                        <NavItem icon={<Bed size={17} />} label="Bed Management" />
+                        <NavItem href="#" icon={<Users size={17} />} label="Patients" />
+                        <NavItem href="#" icon={<Calendar size={17} />} label="Appointments" />
+                        <NavItem href="/dashboard" icon={<UserPlus size={17} />} label="Doctors / Staff" active />
+                        <NavItem href="#" icon={<Building2 size={17} />} label="Departments" />
+                        <NavItem href="/admissions" icon={<Bed size={17} />} label="Admissions" />
+                        <NavItem href="#" icon={<Bed size={17} />} label="Bed Management" />
                     </div>
 
                     <div>
@@ -642,10 +642,10 @@ export default function StaffDashboard() {
    HELPER COMPONENTS
    ========================================= */
 
-function NavItem({ icon, label, active = false }: { icon: React.ReactNode; label: string; active?: boolean }) {
+function NavItem({ href = '#', icon, label, active = false }: { href?: string; icon: React.ReactNode; label: string; active?: boolean }) {
     return (
         <a
-            href="#"
+            href={href}
             className={`flex items-center gap-3 px-3 py-2 rounded-lg mb-0.5 transition-colors ${
                 active
                     ? 'bg-slate-800 text-white font-medium shadow-2xs'
