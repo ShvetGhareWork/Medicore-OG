@@ -16,6 +16,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
+import com.example.identity.service.AdminAuditLogService;
+import org.springframework.security.authentication.LockedException;
+
+import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -25,34 +30,106 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthUtil authUtil;
+    private final AdminAuditLogService auditLogService;
 
-    public AuthService(AuthenticationManager authenticationManager, UserRepository userRepository, PasswordEncoder passwordEncoder, AuthUtil authUtil) {
+    public AuthService(AuthenticationManager authenticationManager, UserRepository userRepository,
+                       PasswordEncoder passwordEncoder, AuthUtil authUtil, AdminAuditLogService auditLogService) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authUtil = authUtil;
+        this.auditLogService = auditLogService;
     }
 
     public LoginResponseDto login(LoginRequestDto loginRequestDto) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequestDto.getUsername(), loginRequestDto.getPassword())
-        );
+        String identifier = loginRequestDto.getUsername() != null ? loginRequestDto.getUsername().trim() : "";
+
+        // Check if user exists to enforce lockout
+        Optional<User> userOpt = userRepository.findByUsername(identifier)
+                .or(() -> userRepository.findByStaffId(identifier))
+                .or(() -> userRepository.findByEmail(identifier))
+                .or(() -> "admin".equalsIgnoreCase(identifier) ? userRepository.findByUsername("admin@medicore.org") : Optional.empty())
+                .or(() -> "admin".equalsIgnoreCase(identifier) ? userRepository.findByStaffId("ADM-2026-0001") : Optional.empty());
+
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(LocalDateTime.now())) {
+                auditLogService.logEvent("LOGIN_BLOCKED_LOCKED", identifier, user.getId(),
+                        user.getRoles().toString(), "BLOCKED", "Attempted login while account is locked until " + user.getLockedUntil());
+                throw new LockedException("Account is temporarily locked due to excessive failed attempts. Please try again later or contact IT Security.");
+            }
+        }
+
+        Authentication authentication;
+        try {
+            authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(identifier, loginRequestDto.getPassword())
+            );
+        } catch (BadCredentialsException e) {
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                int attempts = user.getFailedLoginAttempts() + 1;
+                user.setFailedLoginAttempts(attempts);
+
+                if (attempts >= 5) {
+                    user.setLockedUntil(LocalDateTime.now().plusMinutes(30));
+                    userRepository.save(user);
+                    auditLogService.logEvent("ADMIN_ACCOUNT_LOCKED", identifier, user.getId(),
+                            user.getRoles().toString(), "LOCKED", "Account locked for 30 minutes after " + attempts + " consecutive failed attempts");
+                    throw new LockedException("Account locked for 30 minutes due to 5 consecutive failed login attempts.");
+                } else {
+                    userRepository.save(user);
+                    auditLogService.logEvent("LOGIN_FAILED", identifier, user.getId(),
+                            user.getRoles().toString(), "FAILED", "Invalid credentials. Attempt " + attempts + " of 5");
+                }
+            } else {
+                auditLogService.logEvent("LOGIN_FAILED", identifier, null, "UNKNOWN", "FAILED", "User identifier not recognized");
+            }
+            throw new BadCredentialsException("Invalid credentials or login failed.");
+        }
 
         User user = (User) authentication.getPrincipal();
-        String token = authUtil.generateAccessToken(user);
 
+        // Reset failed attempts on successful login
+        if (user.getFailedLoginAttempts() > 0 || user.getLockedUntil() != null) {
+            user.setFailedLoginAttempts(0);
+            user.setLockedUntil(null);
+            userRepository.save(user);
+        }
+
+        auditLogService.logEvent("LOGIN_SUCCESS", user.getUsername(), user.getId(),
+                user.getRoles().toString(), "SUCCESS", "User authenticated successfully via password");
+
+        if (user.isMfaEnabled() && user.getMfaSecret() != null) {
+            String tempToken = authUtil.generateMfaPendingToken(user);
+            auditLogService.logEvent("MFA_CHALLENGE_ISSUED", user.getUsername(), user.getId(),
+                    user.getRoles().toString(), "PENDING", "Credentials verified. MFA Authenticator challenge issued");
+            return new LoginResponseDto(true, tempToken);
+        }
+
+        String token = authUtil.generateAccessToken(user);
         return new LoginResponseDto(token, user.getId());
     }
 
     public LoginResponseDto badgeLogin(BadgeLoginRequest badgeLoginRequest) {
+        String staffId = badgeLoginRequest.getStaffId() != null ? badgeLoginRequest.getStaffId().trim() : "";
+
         User user = userRepository.findByStaffIdAndBadgeToken(
-                badgeLoginRequest.getStaffId(),
-                badgeLoginRequest.getBadgeToken()
-        ).orElseThrow(() -> new BadCredentialsException("Invalid Staff ID or Badge Token"));
+                staffId,
+                badgeLoginRequest.getBadgeToken() != null ? badgeLoginRequest.getBadgeToken().trim() : ""
+        ).orElseGet(() -> {
+            auditLogService.logEvent("BADGE_LOGIN_FAILED", staffId, null, "UNKNOWN", "FAILED", "Invalid Staff ID or Badge Token");
+            throw new BadCredentialsException("Invalid Staff ID or Badge Token");
+        });
 
         if (user.getStatus() != StaffStatusType.ACTIVE) {
+            auditLogService.logEvent("BADGE_LOGIN_BLOCKED", staffId, user.getId(),
+                    user.getRoles().toString(), "BLOCKED", "Staff account is not in ACTIVE status: " + user.getStatus());
             throw new BadCredentialsException("Staff account is inactive or pending");
         }
+
+        auditLogService.logEvent("BADGE_LOGIN_SUCCESS", staffId, user.getId(),
+                user.getRoles().toString(), "SUCCESS", "Hardware badge verified successfully");
 
         String token = authUtil.generateAccessToken(user);
         return new LoginResponseDto(token, user.getId());
@@ -81,6 +158,15 @@ public class AuthService {
     }
 
     public SignUpResponseDto signup(SignUpRequestDto signUpRequestDto) {
+        if (signUpRequestDto.getRoles() != null) {
+            signUpRequestDto.getRoles().remove(RoleType.ADMIN);
+            signUpRequestDto.getRoles().remove(RoleType.ADMINISTRATIVE);
+            if (signUpRequestDto.getRoles().isEmpty()) {
+                signUpRequestDto.setRoles(Set.of(RoleType.PATIENT));
+            }
+        } else {
+            signUpRequestDto.setRoles(Set.of(RoleType.PATIENT));
+        }
         User user = signUpInternal(signUpRequestDto, AuthProviderType.EMAIL, null);
         return new SignUpResponseDto(user.getId(), user.getUsername());
     }

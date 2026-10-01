@@ -242,16 +242,24 @@ export default function MediCoreLanding() {
                     </nav>
 
                     {/* Desktop CTA */}
-                    <Link href="/register" passHref >
-                        <motion.button
-                            whileHover={reduce ? undefined : { scale: 1.03 }}
-                            whileTap={reduce ? undefined : { scale: 0.97 }}
-                            className="hidden items-center gap-2 rounded-[5px] bg-[#0f172a] px-5 py-3 text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-[#1e293b] lg:flex"
+                    <div className="hidden items-center gap-3 lg:flex">
+                        <Link
+                            href="/login"
+                            className="py-2 text-[13px] font-semibold text-slate-700 transition-colors hover:text-[#0f172a]"
                         >
-                            Get started
-                            <ArrowRight className="h-3.5 w-3.5" />
-                        </motion.button>
-                    </Link>
+                            Sign in
+                        </Link>
+                        <Link href="/register" passHref>
+                            <motion.button
+                                whileHover={reduce ? undefined : { scale: 1.03 }}
+                                whileTap={reduce ? undefined : { scale: 0.97 }}
+                                className="flex items-center gap-2 rounded-[5px] bg-[#0f172a] px-5 py-3 text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-[#1e293b]"
+                            >
+                                Get started
+                                <ArrowRight className="h-3.5 w-3.5" />
+                            </motion.button>
+                        </Link>
+                    </div>
 
                     {/* Mobile button */}
                     <button
@@ -863,7 +871,7 @@ export default function MediCoreLanding() {
                         </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-x-6 gap-y-2 text-[10px] font-medium text-slate-400">
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[10px] font-medium text-slate-400">
                         <a href="#" className="hover:text-slate-700">
                             Privacy Policy
                         </a>
@@ -876,9 +884,9 @@ export default function MediCoreLanding() {
                             Security
                         </a>
 
-                        <a href="#" className="hover:text-slate-700">
-                            Cookie Settings
-                        </a>
+                        <Link href="/admin/login" className="font-semibold text-slate-600 hover:text-teal-700">
+                            Admin Portal
+                        </Link>
                     </div>
                 </div>
             </footer>

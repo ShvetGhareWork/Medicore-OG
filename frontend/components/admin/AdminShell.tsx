@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Activity, CalendarDays, LogOut, Settings, Users } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Activity, CalendarDays, LogOut, Settings, Users, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
+import { clearAuthSession } from "@/lib/auth";
+import AdminInactivityLogout from "./AdminInactivityLogout";
+import MfaSetupModal from "./MfaSetupModal";
 
 const links = [
   { href: "/dashboard", label: "Staff directory", icon: Users },
@@ -13,7 +16,9 @@ const links = [
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [currentHash, setCurrentHash] = useState("");
+  const [isMfaModalOpen, setIsMfaModalOpen] = useState(false);
 
   useEffect(() => {
     // Capture the initial hash on mount
@@ -41,6 +46,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   return (
       <div className="min-h-screen bg-slate-100 text-slate-950">
+        <AdminInactivityLogout timeoutMinutes={15} warningSeconds={60} />
+        <MfaSetupModal isOpen={isMfaModalOpen} onClose={() => setIsMfaModalOpen(false)} />
         <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-slate-200 bg-slate-950 px-5 py-6 text-slate-300 lg:flex">
           <div className="flex items-center gap-3 px-2 text-white">
             <span className="grid size-9 place-items-center rounded-xl bg-teal-400 font-black text-slate-950">M</span>
@@ -67,12 +74,24 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           </nav>
 
           <div className="mt-auto space-y-1">
+            <button
+              onClick={() => setIsMfaModalOpen(true)}
+              className="w-full flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white text-left transition-colors cursor-pointer"
+            >
+              <ShieldCheck className="size-4 text-teal-400" /> 2FA Security
+            </button>
             <Link href="/dashboard#settings" className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm hover:bg-white/5 hover:text-white">
               <Settings className="size-4" /> Settings
             </Link>
-            <Link href="/login" className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-slate-400 hover:bg-white/5 hover:text-white">
+            <button
+              onClick={() => {
+                clearAuthSession();
+                router.push("/admin/login");
+              }}
+              className="w-full flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-slate-400 hover:bg-white/5 hover:text-white text-left transition-colors cursor-pointer"
+            >
               <LogOut className="size-4" /> Sign out
-            </Link>
+            </button>
           </div>
         </aside>
 

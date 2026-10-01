@@ -21,20 +21,24 @@ export function middleware(request: NextRequest) {
   const matchedPath = Object.keys(accessRules).find((path) => pathname === path || pathname.startsWith(`${path}/`));
   if (!matchedPath) return NextResponse.next();
 
+  const isAdminRoute = matchedPath === "/dashboard" || matchedPath === "/admissions";
+  const loginUrl = isAdminRoute ? "/admin/login" : "/login";
+
   const token = request.cookies.get("jwt_token")?.value;
-  if (!token) return NextResponse.redirect(new URL("/login", request.url));
+  if (!token) return NextResponse.redirect(new URL(loginUrl, request.url));
+
   try {
     const claims = jwtDecode<TokenClaims>(token);
     if (claims.exp !== undefined && claims.exp * 1000 <= Date.now()) {
-      return NextResponse.redirect(new URL("/login?error=session-expired", request.url));
+      return NextResponse.redirect(new URL(`${loginUrl}?error=session-expired`, request.url));
     }
     const roles = rolesFromToken(token);
     if (!accessRules[matchedPath].some((role) => roles.includes(role))) {
-      return NextResponse.redirect(new URL("/login?error=unauthorized", request.url));
+      return NextResponse.redirect(new URL(`${loginUrl}?error=unauthorized`, request.url));
     }
     return NextResponse.next();
   } catch {
-    return NextResponse.redirect(new URL("/login?error=invalid-session", request.url));
+    return NextResponse.redirect(new URL(`${loginUrl}?error=invalid-session`, request.url));
   }
 }
 

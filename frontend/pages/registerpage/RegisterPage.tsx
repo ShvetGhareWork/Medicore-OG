@@ -17,6 +17,8 @@ import {
     GitBranchPlusIcon,
 } from "lucide-react";
 
+import { API_BASE_URL } from "@/lib/api/config";
+
 export default function RegisterPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
@@ -24,7 +26,7 @@ export default function RegisterPage() {
     const router = useRouter();
 
     const handleGoogleLogin = () => {
-        window.location.href = "http://localhost:8081/oauth2/authorization/google";
+        window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
     };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -36,7 +38,7 @@ export default function RegisterPage() {
         const data = Object.fromEntries(formData);
 
         try {
-            const response = await fetch("http://localhost:8081/auth/signup", {
+            const response = await fetch(`${API_BASE_URL}/auth/signup`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
