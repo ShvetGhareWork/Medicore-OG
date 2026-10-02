@@ -3,10 +3,13 @@ package com.example.identity.service;
 import com.example.identity.dto.CreateStaffRequest;
 import com.example.identity.dto.StaffListItemResponse;
 import com.example.identity.dto.StaffResponse;
+import com.example.identity.entity.Department;
+import com.example.identity.entity.Staff;
 import com.example.identity.entity.User;
 import com.example.identity.entity.type.*;
+import com.example.identity.repository.DepartmentRepository;
+import com.example.identity.repository.StaffRepository;
 import com.example.identity.repository.UserRepository;
-import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,11 +28,15 @@ import java.util.UUID;
 @Service
 public class StaffService {
 
+    private final StaffRepository staffRepository;
+    private final DepartmentRepository departmentRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
 
-    public StaffService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public StaffService(StaffRepository staffRepository, DepartmentRepository departmentRepository, UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.staffRepository = staffRepository;
+        this.departmentRepository = departmentRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
     }
@@ -56,7 +63,7 @@ public class StaffService {
         String prefixYear = prefix + "-" + currentYear;
         String pattern = prefixYear + "-%";
 
-        List<String> existingStaffIds = userRepository.findStaffIdsForPrefixWithLock(pattern);
+        List<String> existingStaffIds = staffRepository.findStaffIdsForPrefixWithLock(pattern);
 
         int maxSeq = 0;
         for (String staffId : existingStaffIds) {
@@ -87,15 +94,19 @@ public class StaffService {
 
     @Transactional
     public StaffResponse createStaff(CreateStaffRequest request) {
-        if (userRepository.findByUsername(request.getEmail()).isPresent() ||
-                userRepository.findByEmail(request.getEmail()).isPresent()) {
+        if (staffRepository.existsByEmail(request.getEmail()) || userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new IllegalArgumentException("User with email " + request.getEmail() + " already exists");
         }
 
-        User reportingTo = null;
-        if (request.getReportingToId() != null) {
-            reportingTo = userRepository.findById(request.getReportingToId())
-                    .orElseThrow(() -> new IllegalArgumentException("Reporting manager not found with ID: " + request.getReportingToId()));
+        Department department = null;
+        if (request.getDepartment() != null && !request.getDepartment().isBlank()) {
+            department = departmentRepository.findByNameIgnoreCase(request.getDepartment())
+                    .orElseGet(() -> {
+                        Department d = new Department();
+                        d.setName(request.getDepartment());
+                        d.setCode(request.getDepartment().toUpperCase().replaceAll("[^A-Z]", ""));
+                        return departmentRepository.save(d);
+                    });
         }
 
         String staffId = generateStaffId(request.getRole());
@@ -109,6 +120,23 @@ public class StaffService {
 
         AccessLevelType accessLevel = request.getAccessLevel() != null ? request.getAccessLevel() : AccessLevelType.STANDARD;
 
+        Staff staff = new Staff();
+        staff.setStaffId(staffId);
+        staff.setFullName(request.getFullName());
+        staff.setEmail(request.getEmail());
+        staff.setContactNumber(request.getContactNumber());
+        staff.setDateOfBirth(request.getDateOfBirth());
+        staff.setRole(request.getRole());
+        staff.setDepartment(department);
+        staff.setDesignation(request.getDesignation());
+        staff.setAccessLevel(accessLevel);
+        staff.setLoginMethod(loginMethod);
+        staff.setPhotoUrl(request.getPhotoUrl());
+        staff.setStatus(StaffStatusType.ACTIVE);
+
+        Staff savedStaff = staffRepository.save(staff);
+
+        // Also create User record for authentication
         User user = User.builder()
                 .username(request.getEmail())
                 .email(request.getEmail())
@@ -117,12 +145,11 @@ public class StaffService {
                 .providerType(AuthProviderType.EMAIL)
                 .roles(Set.of(request.getRole()))
                 .staffId(staffId)
-                .department(request.getDepartment())
+                .department(department != null ? department.getName() : request.getDepartment())
                 .designation(request.getDesignation())
                 .dateOfBirth(request.getDateOfBirth())
                 .contactNumber(request.getContactNumber())
                 .photoUrl(request.getPhotoUrl())
-                .reportingTo(reportingTo)
                 .accessLevel(accessLevel)
                 .loginMethod(loginMethod)
                 .badgeToken(badgeToken)
@@ -130,24 +157,21 @@ public class StaffService {
                 .status(StaffStatusType.ACTIVE)
                 .build();
 
-        User savedUser = userRepository.save(user);
-        return mapToStaffResponse(savedUser);
+        userRepository.save(user);
+
+        return mapToStaffResponse(savedStaff, user);
     }
 
     public Page<StaffListItemResponse> getStaffList(RoleType role, String department, StaffStatusType status, String search, Pageable pageable) {
-        Specification<User> spec = (root, query, cb) -> {
+        Specification<Staff> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            // Only staff users
-            predicates.add(cb.isNotNull(root.get("staffId")));
-
             if (role != null) {
-                Join<User, RoleType> rolesJoin = root.join("roles");
-                predicates.add(cb.equal(rolesJoin, role));
+                predicates.add(cb.equal(root.get("role"), role));
             }
 
             if (department != null && !department.isBlank() && !"All Departments".equalsIgnoreCase(department)) {
-                predicates.add(cb.like(cb.lower(root.get("department")), "%" + department.toLowerCase() + "%"));
+                predicates.add(cb.like(cb.lower(root.get("department").get("name")), "%" + department.toLowerCase() + "%"));
             }
 
             if (status != null) {
@@ -167,78 +191,77 @@ public class StaffService {
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
-        Page<User> page = userRepository.findAll(spec, pageable);
+        Page<Staff> page = staffRepository.findAll(spec, pageable);
         return page.map(this::mapToStaffListItemResponse);
     }
 
     public StaffResponse getStaffById(Long id) {
-        User user = userRepository.findById(id)
+        Staff staff = staffRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Staff member not found with ID: " + id));
-        if (user.getStaffId() == null) {
-            throw new IllegalArgumentException("User with ID " + id + " is not a staff member");
-        }
-        return mapToStaffResponse(user);
+        User user = userRepository.findByEmail(staff.getEmail()).orElse(null);
+        return mapToStaffResponse(staff, user);
     }
 
     @Transactional
     public StaffResponse deactivateStaff(Long id) {
-        User user = userRepository.findById(id)
+        Staff staff = staffRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Staff member not found with ID: " + id));
-        if (user.getStaffId() == null) {
-            throw new IllegalArgumentException("User with ID " + id + " is not a staff member");
+        staff.setStatus(StaffStatusType.INACTIVE);
+        Staff savedStaff = staffRepository.save(staff);
+
+        User user = userRepository.findByEmail(staff.getEmail()).orElse(null);
+        if (user != null) {
+            user.setStatus(StaffStatusType.INACTIVE);
+            user.setBadgeVersion(user.getBadgeVersion() + 1);
+            userRepository.save(user);
         }
-        user.setStatus(StaffStatusType.INACTIVE);
-        user.setBadgeVersion(user.getBadgeVersion() + 1);
-        User savedUser = userRepository.save(user);
-        return mapToStaffResponse(savedUser);
+
+        return mapToStaffResponse(savedStaff, user);
     }
 
-    public StaffResponse mapToStaffResponse(User user) {
-        RoleType primaryRole = user.getRoles() != null && !user.getRoles().isEmpty()
-                ? user.getRoles().iterator().next()
-                : null;
-
-        Long reportingToId = user.getReportingTo() != null ? user.getReportingTo().getId() : null;
-        String reportingToName = user.getReportingTo() != null ? user.getReportingTo().getFullName() : null;
+    public StaffResponse mapToStaffResponse(Staff staff, User user) {
+        String deptName = staff.getDepartment() != null ? staff.getDepartment().getName() : null;
+        Long reportingToId = user != null && user.getReportingTo() != null ? user.getReportingTo().getId() : null;
+        String reportingToName = user != null && user.getReportingTo() != null ? user.getReportingTo().getFullName() : null;
+        String badgeToken = user != null ? user.getBadgeToken() : null;
+        int badgeVersion = user != null ? user.getBadgeVersion() : 1;
 
         return new StaffResponse(
-                user.getId(),
-                user.getStaffId(),
-                user.getFullName(),
-                user.getEmail(),
-                user.getContactNumber(),
-                user.getDateOfBirth(),
-                primaryRole,
-                user.getDepartment(),
-                user.getDesignation(),
+                staff.getId(),
+                staff.getStaffId(),
+                staff.getFullName(),
+                staff.getEmail(),
+                staff.getContactNumber(),
+                staff.getDateOfBirth(),
+                staff.getRole(),
+                deptName,
+                staff.getDesignation(),
                 reportingToId,
                 reportingToName,
-                user.getAccessLevel(),
-                user.getLoginMethod(),
-                user.getBadgeToken(),
-                user.getBadgeVersion(),
-                user.getStatus(),
-                user.getCreatedAt(),
-                user.getPhotoUrl()
+                staff.getAccessLevel(),
+                staff.getLoginMethod(),
+                badgeToken,
+                badgeVersion,
+                staff.getStatus(),
+                staff.getCreatedAt(),
+                staff.getPhotoUrl()
         );
     }
 
-    public StaffListItemResponse mapToStaffListItemResponse(User user) {
-        RoleType primaryRole = user.getRoles() != null && !user.getRoles().isEmpty()
-                ? user.getRoles().iterator().next()
-                : null;
+    public StaffListItemResponse mapToStaffListItemResponse(Staff staff) {
+        String deptName = staff.getDepartment() != null ? staff.getDepartment().getName() : null;
 
         return new StaffListItemResponse(
-                user.getId(),
-                user.getStaffId(),
-                user.getFullName(),
-                user.getEmail(),
-                primaryRole,
-                user.getDepartment(),
-                user.getDesignation(),
-                user.getStatus(),
-                user.getCreatedAt(),
-                user.getPhotoUrl()
+                staff.getId(),
+                staff.getStaffId(),
+                staff.getFullName(),
+                staff.getEmail(),
+                staff.getRole(),
+                deptName,
+                staff.getDesignation(),
+                staff.getStatus(),
+                staff.getCreatedAt(),
+                staff.getPhotoUrl()
         );
     }
 }

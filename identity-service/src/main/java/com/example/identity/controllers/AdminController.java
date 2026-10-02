@@ -16,15 +16,29 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import com.example.identity.entity.AdminAuditLog;
+import com.example.identity.service.AdminAuditLogService;
+
 @RestController
 @RequestMapping("/admin/staff")
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
     private final StaffService staffService;
+    private final AdminAuditLogService auditLogService;
 
-    public AdminController(StaffService staffService) {
+    public AdminController(StaffService staffService, AdminAuditLogService auditLogService) {
         this.staffService = staffService;
+        this.auditLogService = auditLogService;
+    }
+
+    @GetMapping("/audit-logs")
+    public ResponseEntity<Page<AdminAuditLog>> getAuditLogs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(auditLogService.getAuditLogs(pageable));
     }
 
     @PostMapping

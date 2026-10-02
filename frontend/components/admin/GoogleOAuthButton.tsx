@@ -1,8 +1,10 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/api/config";
+
 export default function GoogleOAuthButton() {
   const signInWithGoogle = () => {
-    window.location.assign("http://localhost:8081/oauth2/authorization/google");
+    window.location.assign(`${API_BASE_URL}/oauth2/authorization/google`);
   };
 
   return (

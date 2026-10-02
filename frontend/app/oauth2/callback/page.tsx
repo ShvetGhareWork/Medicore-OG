@@ -3,6 +3,8 @@
 import React, { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { extractRoles, getRedirectPathForRoles, storeAuthSession } from "@/lib/auth";
+
 function CallbackHandler() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -15,11 +17,10 @@ function CallbackHandler() {
     const error = searchParams.get("error");
 
     if (token) {
-      localStorage.setItem("token", token);
-      if (userId) {
-        localStorage.setItem("userId", userId);
-      }
-      router.push("/dashboard");
+      storeAuthSession(token, userId || undefined);
+      const roles = extractRoles(token);
+      const targetPath = getRedirectPathForRoles(roles);
+      router.push(targetPath);
     } else if (error) {
       console.error("OAuth2 error:", error);
       router.push(`/login?error=${encodeURIComponent(error)}`);

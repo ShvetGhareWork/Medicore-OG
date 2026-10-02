@@ -2,6 +2,7 @@ package com.example.identity.security;
 
 import com.example.identity.entity.User;
 import com.example.identity.entity.type.AuthProviderType;
+import com.example.identity.entity.type.RoleType;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -28,14 +29,41 @@ public class AuthUtil {
     }
 
     public String generateAccessToken(User user) {
+        boolean isAdmin = user.getRoles().contains(RoleType.ADMIN) || user.getRoles().contains(RoleType.ADMINISTRATIVE);
+        long validityDurationMs = isAdmin ? (1000L * 60 * 60 * 4) : (1000L * 60 * 60 * 24); // 4h for admin, 24h for normal
+
         return Jwts.builder()
                 .subject(user.getUsername())
                 .claim("userId", user.getId().toString())
                 .claim("roles", user.getRoles().stream().map(Enum::name).toList())
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24)) // 24 hours
+                .expiration(new Date(System.currentTimeMillis() + validityDurationMs))
                 .signWith(getSecretKey())
                 .compact();
+    }
+
+    public String generateMfaPendingToken(User user) {
+        return Jwts.builder()
+                .subject(user.getUsername())
+                .claim("userId", user.getId().toString())
+                .claim("mfaPending", true)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 5)) // 5 minutes validity
+                .signWith(getSecretKey())
+                .compact();
+    }
+
+    public boolean isMfaPendingToken(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(getSecretKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+            return Boolean.TRUE.equals(claims.get("mfaPending", Boolean.class));
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public String getUsernameFromToken(String token) {

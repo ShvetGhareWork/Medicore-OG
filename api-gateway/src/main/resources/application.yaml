@@ -10,8 +10,10 @@ spring:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins:
-              - "http://localhost:3000"
+            allowedOriginPatterns:
+              - "http://localhost:*"
+              - "http://127.0.0.1:*"
+              - "${app.cors.allowed-origin:http://localhost:3000}"
             allowedMethods:
               - GET
               - POST
@@ -33,7 +35,7 @@ spring:
         - id: identity-service
           uri: lb://IDENTITY-SERVICE
           predicates:
-            - Path=/auth/**, /login/**, /oauth2/**, /admin/staff/**
+            - Path=/auth/**, /login/**, /oauth2/**, /admin/staff/**, /admin/patients/**
 
         - id: patient-service
           uri: lb://PATIENT-SERVICE

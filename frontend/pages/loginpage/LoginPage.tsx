@@ -10,8 +10,10 @@ import {
   Lock,
   Eye,
   EyeOff,
-  GitBranchPlusIcon,
 } from "lucide-react";
+
+import { extractRoles, getRedirectPathForRoles, storeAuthSession } from "@/lib/auth";
+import { API_BASE_URL } from "@/lib/api/config";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -28,10 +30,6 @@ export default function LoginPage() {
     }
   }, [searchParams]);
 
-  const handleGoogleLogin = () => {
-    window.location.href = "http://localhost:8081/oauth2/authorization/google";
-  };
-
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
@@ -41,13 +39,13 @@ export default function LoginPage() {
     const data = Object.fromEntries(formData);
 
     try {
-      const response = await fetch("http://localhost:8081/auth/login", {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username: data.email,
+          username: (data.username || data.email || "").toString().trim(),
           password: data.password,
         }),
       });
@@ -58,10 +56,11 @@ export default function LoginPage() {
         throw new Error(result.error || result.message || "Invalid credentials or login failed.");
       }
 
-      localStorage.setItem("token", result.jwt);
-      localStorage.setItem("userId", result.id);
+      storeAuthSession(result.jwt, result.id);
+      const roles = extractRoles(result.jwt);
+      const targetPath = getRedirectPathForRoles(roles);
 
-      router.push("/dashboard");
+      router.push(targetPath);
     } catch (err: any) {
       console.error("Login error:", err);
       setError(err.message || "Failed to connect to the backend server.");
@@ -158,15 +157,15 @@ export default function LoginPage() {
 
               <div className="space-y-1">
                 <label className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider">
-                  Email Address
+                  Email / Staff Identifier
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
-                      type="email"
-                      name="email"
-                      placeholder="doctor@hospital.org"
-                      className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all placeholder:text-slate-400"
+                      type="text"
+                      name="username"
+                      placeholder="admin@medicore.org or ADM-2026-0001"
+                      className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all placeholder:text-slate-400"
                       required
                   />
                 </div>
@@ -190,7 +189,7 @@ export default function LoginPage() {
                       type={showPassword ? "text" : "password"}
                       name="password"
                       placeholder="••••••••"
-                      className="w-full pl-9 pr-9 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all placeholder:text-slate-400 font-mono"
+                      className="w-full pl-9 pr-9 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all placeholder:text-slate-400 font-mono"
                       required
                   />
                   <button
@@ -210,74 +209,31 @@ export default function LoginPage() {
               <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-[#111827] hover:bg-slate-800 text-white text-sm font-semibold py-2.5 rounded-lg transition-all mt-2 disabled:opacity-50 cursor-pointer"
+                  className="w-full bg-[#111827] hover:bg-slate-800 text-white text-sm font-semibold py-3 rounded-lg transition-all mt-2 disabled:opacity-50 cursor-pointer"
               >
-                {loading ? "Signing In..." : "Sign In"}
+                {loading ? "Signing In..." : "Sign In Directly"}
               </button>
             </form>
 
-            <div className="pt-1">
-              <div className="relative flex items-center py-3">
-                <div className="flex-grow border-t border-slate-200"></div>
-                <span className="flex-shrink-0 mx-4 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                Or continue with
-              </span>
-                <div className="flex-grow border-t border-slate-200"></div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                <button
-                    type="button"
-                    onClick={handleGoogleLogin}
-                    className="flex items-center justify-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white hover:bg-slate-50 transition-colors cursor-pointer"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
-                    <path
-                        fill="currentColor"
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                        className="text-[#4285F4]"
-                    />
-                    <path
-                        fill="currentColor"
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                        className="text-[#34A853]"
-                    />
-                    <path
-                        fill="currentColor"
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                        className="text-[#FBBC05]"
-                    />
-                    <path
-                        fill="currentColor"
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                        className="text-[#EA4335]"
-                    />
-                  </svg>
-                  <span className="text-xs font-semibold text-slate-700">
-                  Google
-                </span>
-                </button>
-                <button
-                    type="button"
-                    className="flex items-center justify-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white hover:bg-slate-50 transition-colors cursor-pointer"
-                >
-                  <GitBranchPlusIcon className="w-3.5 h-3.5 text-slate-900" />
-                  <span className="text-xs font-semibold text-slate-700">
-                  GitHub
-                </span>
-                </button>
-              </div>
-            </div>
-
-            <p className="text-center text-xs sm:text-sm text-slate-600 pt-2">
+            <p className="text-center text-xs sm:text-sm text-slate-600 pt-3">
               Don't have an account?{" "}
               <a
                   href="/register"
                   className="font-semibold text-teal-700 hover:text-teal-800 transition-colors"
               >
-                Sign up
+                Sign up as Patient
               </a>
             </p>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span>Hospital Administrator?</span>
+              <a
+                href="/admin/login"
+                className="font-semibold text-slate-900 hover:text-teal-700 inline-flex items-center gap-1 transition-colors"
+              >
+                Dedicated Admin Portal &rarr;
+              </a>
+            </div>
           </div>
         </div>
       </div>

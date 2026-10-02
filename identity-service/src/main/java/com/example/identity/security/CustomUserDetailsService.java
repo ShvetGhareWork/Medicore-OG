@@ -17,7 +17,15 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
+        if (username == null || username.isBlank()) {
+            throw new UsernameNotFoundException("Username cannot be empty");
+        }
+        String cleanUsername = username.trim();
+        return userRepository.findByUsername(cleanUsername)
+                .or(() -> userRepository.findByStaffId(cleanUsername))
+                .or(() -> userRepository.findByEmail(cleanUsername))
+                .or(() -> "admin".equalsIgnoreCase(cleanUsername) ? userRepository.findByUsername("admin@medicore.org") : java.util.Optional.empty())
+                .or(() -> "admin".equalsIgnoreCase(cleanUsername) ? userRepository.findByStaffId("ADM-2026-0001") : java.util.Optional.empty())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
     }
 }

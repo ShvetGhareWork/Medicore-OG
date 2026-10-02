@@ -42,16 +42,16 @@ export function AddMedicModal({ isOpen, onClose, onStaffAdded }: AddMedicModalPr
     const [createdStaffResult, setCreatedStaffResult] = useState<any | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Form State
+    // Form State starts blank with no pre-filled mock defaults
     const [formData, setFormData] = useState({
-        fullName: 'Dr. Marcus Vance',
-        email: 'm.vance@medicore.org',
-        phone: '+1 (555) 234-8901',
-        dob: '1985-04-12',
+        fullName: '',
+        email: '',
+        phone: '',
+        dob: '',
         role: 'Doctor',
-        department: 'Cardiology & Vascular Surgery',
-        designation: 'Senior Physician / Attending Care',
-        reportingTo: 'Dr. Eleanor Vance (Chief Medical Officer)',
+        department: '',
+        designation: '',
+        reportingTo: '',
         accessLevel: 'Elevated Access',
         loginMethod: 'Badge / QR Login',
         shiftSchedule: 'Full-Time (Day Shift)',
@@ -118,8 +118,8 @@ export function AddMedicModal({ isOpen, onClose, onStaffAdded }: AddMedicModalPr
         const payload: CreateStaffPayload = {
             fullName: formData.fullName,
             email: formData.email,
-            contactNumber: formData.phone,
-            dateOfBirth: formData.dob,
+            contactNumber: formData.phone || undefined,
+            dateOfBirth: formData.dob || undefined,
             role: roleMap[formData.role] || 'DOCTOR',
             department: formData.department,
             designation: formData.designation,
@@ -158,7 +158,7 @@ export function AddMedicModal({ isOpen, onClose, onStaffAdded }: AddMedicModalPr
                 id: result.staffId,
                 role: formData.role,
                 roleColor: roleColorMap[formData.role] || 'bg-slate-100 text-slate-700',
-                dept: (result.department || formData.department).split('&')[0].trim(),
+                dept: (result.department || formData.department || '').split('&')[0].trim(),
                 subDept: result.designation || formData.designation,
                 status: 'Active',
                 date: 'Just Now',
@@ -184,6 +184,20 @@ export function AddMedicModal({ isOpen, onClose, onStaffAdded }: AddMedicModalPr
         setIsGenerating(false);
         setErrorMessage(null);
         setCreatedStaffResult(null);
+        setFormData({
+            fullName: '',
+            email: '',
+            phone: '',
+            dob: '',
+            role: 'Doctor',
+            department: '',
+            designation: '',
+            reportingTo: '',
+            accessLevel: 'Elevated Access',
+            loginMethod: 'Badge / QR Login',
+            shiftSchedule: 'Full-Time (Day Shift)',
+            confirmed: false
+        });
     };
 
     const stepVariants = {
@@ -546,6 +560,7 @@ export function AddMedicModal({ isOpen, onClose, onStaffAdded }: AddMedicModalPr
                                                                 onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                                                                 className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-600/30 focus:border-teal-600 appearance-none transition-all pr-8 cursor-pointer"
                                                             >
+                                                                <option value="">Select Department...</option>
                                                                 <option value="Cardiology & Vascular Surgery">Cardiology & Vascular</option>
                                                                 <option value="General Medicine">General Medicine</option>
                                                                 <option value="Emergency Care">Emergency Care</option>
@@ -586,6 +601,7 @@ export function AddMedicModal({ isOpen, onClose, onStaffAdded }: AddMedicModalPr
                                                             type="text"
                                                             value={formData.reportingTo}
                                                             onChange={(e) => setFormData({ ...formData, reportingTo: e.target.value })}
+                                                            placeholder="Clinical lead name..."
                                                             className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-600/30 focus:border-teal-600 transition-all"
                                                         />
                                                     </div>
@@ -678,7 +694,7 @@ export function AddMedicModal({ isOpen, onClose, onStaffAdded }: AddMedicModalPr
                                                             {avatarPreview ? (
                                                                 <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
                                                             ) : (
-                                                                formData.fullName.slice(0, 2).toUpperCase()
+                                                                (formData.fullName || 'CL').slice(0, 2).toUpperCase()
                                                             )}
                                                         </div>
 
@@ -692,7 +708,7 @@ export function AddMedicModal({ isOpen, onClose, onStaffAdded }: AddMedicModalPr
                                                                 </span>
                                                             </div>
                                                             <p className="text-xs text-slate-500 mt-0.5 font-mono">
-                                                                Auto-Generated Staff ID • {formData.designation}
+                                                                Auto-Generated Staff ID • {formData.designation || 'Staff'}
                                                             </p>
                                                         </div>
                                                     </div>

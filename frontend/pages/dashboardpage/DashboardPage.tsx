@@ -6,7 +6,7 @@ import {
     ChevronDown, Filter, RefreshCw, MoreVertical, LayoutDashboard,
     Calendar, Building2, UserPlus, Bed, FileText, Pill, FlaskConical,
     CreditCard, ShieldCheck, LineChart, Settings, HelpCircle, Menu, X,
-    Download, Sparkles, Edit2, Trash2
+    Download, Sparkles, Edit2, Trash2, Loader2, LogOut
 } from 'lucide-react';
 import { AddMedicModal, StaffMember } from '../addmedicformpage/AddMedicFormPage';
 import { getStaffList, deactivateStaff } from '../../lib/api/staffApi';
@@ -164,7 +164,6 @@ export default function StaffDashboard() {
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
 
-    // Debounce search — wait 500ms after user stops typing before hitting the API
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearch(searchQuery);
@@ -222,8 +221,6 @@ export default function StaffDashboard() {
     const handleDelete = async (staff: StaffMember) => {
         if (!confirm(`Deactivate "${staff.name}"? This will mark them as inactive.`)) return;
         try {
-            // staffId is like "DOC-2026-0001", but API needs the numeric DB id.
-            // We pass staffId string; deactivateStaff accepts string|number.
             await deactivateStaff(staff.id);
             setStaffList(prev => prev.filter(s => s.id !== staff.id));
             setTotalElements(prev => Math.max(0, prev - 1));
@@ -233,7 +230,6 @@ export default function StaffDashboard() {
         }
     };
 
-    // Client filter as fallback if offline
     const filteredStaff = useMemo(() => {
         return staffList.filter(staff => {
             const matchesSearch =
@@ -242,17 +238,9 @@ export default function StaffDashboard() {
                 staff.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 staff.dept.toLowerCase().includes(searchQuery.toLowerCase());
 
-            const matchesRole =
-                selectedRole === 'All Roles' ||
-                staff.role.toLowerCase() === selectedRole.toLowerCase();
-
-            const matchesDept =
-                selectedDept === 'All Departments' ||
-                staff.dept.toLowerCase().includes(selectedDept.toLowerCase());
-
-            const matchesStatus =
-                selectedStatus === 'All Statuses' ||
-                staff.status.toLowerCase() === selectedStatus.toLowerCase();
+            const matchesRole = selectedRole === 'All Roles' || staff.role.toLowerCase() === selectedRole.toLowerCase();
+            const matchesDept = selectedDept === 'All Departments' || staff.dept.toLowerCase().includes(selectedDept.toLowerCase());
+            const matchesStatus = selectedStatus === 'All Statuses' || staff.status.toLowerCase() === selectedStatus.toLowerCase();
 
             return matchesSearch && matchesRole && matchesDept && matchesStatus;
         });
@@ -279,386 +267,362 @@ export default function StaffDashboard() {
     };
 
     return (
-        <div className="flex h-screen bg-slate-50 font-sans overflow-hidden text-slate-900">
-            {/* Custom Scrollbar Styles */}
+        <div className="w-full h-full min-h-0 bg-slate-50 font-sans text-slate-900 flex flex-col min-w-0 relative overflow-hidden">
             <style>{`
-                ::-webkit-scrollbar { width: 6px; height: 6px; }
-                ::-webkit-scrollbar-track { background: transparent; }
-                ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-                ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+                /* Desktop: slim, auto-hiding scrollbar that only appears on hover/scroll */
+                @media (min-width: 768px) {
+                    .scroll-area {
+                        scrollbar-width: none; /* Firefox: hidden until hover */
+                    }
+                    .scroll-area:hover,
+                    .scroll-area:focus-within {
+                        scrollbar-width: thin;
+                        scrollbar-color: #cbd5e1 transparent;
+                    }
+                    .scroll-area::-webkit-scrollbar { width: 6px; height: 6px; }
+                    .scroll-area::-webkit-scrollbar-track { background: transparent; }
+                    .scroll-area::-webkit-scrollbar-thumb {
+                        background: transparent;
+                        border-radius: 10px;
+                        transition: background 0.2s ease;
+                    }
+                    .scroll-area:hover::-webkit-scrollbar-thumb,
+                    .scroll-area:focus-within::-webkit-scrollbar-thumb {
+                        background: #cbd5e1;
+                    }
+                    .scroll-area::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+                }
+                /* Mobile: keep native touch scrolling, thin visible bar */
+                @media (max-width: 767px) {
+                    .scroll-area::-webkit-scrollbar { width: 4px; height: 4px; }
+                    .scroll-area::-webkit-scrollbar-track { background: transparent; }
+                    .scroll-area::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+                }
             `}</style>
 
             {/* TOAST NOTIFICATION */}
             {toastMessage && (
-                <div className="fixed bottom-6 right-6 z-[120] bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 border border-slate-700 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                    <Sparkles size={18} className="text-teal-400" />
+                <div
+                    role="status"
+                    aria-live="polite"
+                    className="fixed bottom-4 inset-x-4 sm:inset-x-auto sm:bottom-6 sm:right-6 z-[120] bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 border border-slate-700 animate-in fade-in slide-in-from-bottom-4 duration-300 sm:max-w-sm"
+                >
+                    <Sparkles size={18} className="text-teal-400 shrink-0" />
                     <span className="text-xs font-medium">{toastMessage}</span>
                 </div>
             )}
 
-            {/* MOBILE OVERLAY */}
+            {/* MOBILE ONLY HEADER */}
+            <header className="md:hidden flex items-center justify-between p-4 bg-[#0a0f1c] text-white shrink-0 border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center font-bold text-white shadow-sm">
+                        M
+                    </div>
+                    <h1 className="text-sm font-semibold tracking-wide">MediCore Admin</h1>
+                </div>
+                <button
+                    onClick={() => setIsSidebarOpen(true)}
+                    aria-label="Open navigation menu"
+                    className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                    <Menu size={22} />
+                </button>
+            </header>
+
+            {/* MOBILE ONLY SIDEBAR OVERLAY */}
             {isSidebarOpen && (
                 <div
-                    className="fixed inset-0 bg-slate-900/60 z-40 md:hidden transition-opacity backdrop-blur-xs"
+                    className="fixed inset-0 bg-slate-900/60 z-[60] md:hidden backdrop-blur-xs transition-opacity"
                     onClick={() => setIsSidebarOpen(false)}
+                    aria-hidden="true"
                 />
             )}
 
-            {/* SIDEBAR */}
-            <aside className={`
-                fixed inset-y-0 left-0 z-50 w-64 bg-[#0f172a] text-slate-300 h-full overflow-y-auto flex flex-col
-                transition-transform duration-300 ease-in-out md:relative md:translate-x-0
+            {/* MOBILE ONLY SIDEBAR DRAWER (Hidden on Desktop) */}
+            <aside
+                className={`
+                fixed inset-y-0 left-0 z-[70] w-[min(16rem,85vw)] bg-[#0a0f1c] text-slate-300 h-full overflow-y-auto flex flex-col
+                transition-transform duration-300 ease-in-out md:hidden shadow-2xl
                 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-            `}>
-                <div className="p-4 border-b border-slate-800 flex items-center justify-between text-white">
+            `}
+                aria-hidden={!isSidebarOpen}
+            >
+                <div className="p-4 border-b border-slate-800 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center font-bold text-white shadow-sm">
-                            <span className="text-lg leading-none">+</span>
+                        <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center font-bold text-white">
+                            M
                         </div>
-                        <div>
-                            <h1 className="text-sm font-semibold tracking-wide text-white">MediCore HMS</h1>
-                            <p className="text-[11px] text-slate-400">Hospital Management System</p>
-                        </div>
+                        <h1 className="text-sm font-semibold tracking-wide text-white">MediCore</h1>
                     </div>
-                    <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-slate-400 hover:text-white p-1">
-                        <X size={18} />
+                    <button
+                        onClick={() => setIsSidebarOpen(false)}
+                        aria-label="Close navigation menu"
+                        className="text-slate-400 hover:text-white p-1"
+                    >
+                        <X size={20} />
                     </button>
                 </div>
 
-                <div className="px-4 pt-4 pb-2 text-[10px] font-bold text-slate-400 tracking-wider">
-                    CITY CENTRAL BRANCH
+                <div className="px-4 pt-4 pb-2 text-[10px] font-bold text-slate-500 tracking-wider">
+                    WORKSPACE
                 </div>
 
-                <nav className="flex-1 px-3 space-y-5 pb-4">
-                    <div>
-                        <div className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 tracking-wider">OVERVIEW</div>
-                        <NavItem icon={<LayoutDashboard size={17} />} label="Dashboard" />
-                    </div>
-
-                    <div>
-                        <div className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 tracking-wider">OPERATIONS</div>
-                        <NavItem icon={<Users size={17} />} label="Patients" />
-                        <NavItem icon={<Calendar size={17} />} label="Appointments" />
-                        <NavItem icon={<UserPlus size={17} />} label="Doctors / Staff" active />
-                        <NavItem icon={<Building2 size={17} />} label="Departments" />
-                        <NavItem icon={<UserPlus size={17} />} label="Admissions" />
-                        <NavItem icon={<Bed size={17} />} label="Bed Management" />
-                    </div>
-
-                    <div>
-                        <div className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 tracking-wider">CLINICAL</div>
-                        <NavItem icon={<FileText size={17} />} label="Medical Records" />
-                        <NavItem icon={<Pill size={17} />} label="Pharmacy" />
-                        <NavItem icon={<FlaskConical size={17} />} label="Laboratory" />
-                    </div>
-
-                    <div>
-                        <div className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 tracking-wider">FINANCE & INSIGHTS</div>
-                        <NavItem icon={<CreditCard size={17} />} label="Billing" />
-                        <NavItem icon={<ShieldCheck size={17} />} label="Insurance" />
-                        <NavItem icon={<LineChart size={17} />} label="Analytics" />
-                    </div>
+                <nav className="px-3 space-y-1">
+                    <SidebarNavItem icon={LayoutDashboard} label="Overview" />
+                    <SidebarNavItem icon={UserPlus} label="Admissions" />
+                    <SidebarNavItem icon={Users} label="Staff directory" active />
+                    <SidebarNavItem icon={LineChart} label="Activity" />
                 </nav>
 
-                <div className="p-3 mt-auto border-t border-slate-800 space-y-1 bg-[#0f172a]">
-                    <NavItem icon={<Settings size={17} />} label="Settings" />
-                    <NavItem icon={<HelpCircle size={17} />} label="Help & Support" />
-                    <div className="mt-3 flex items-center gap-3 px-3 py-2.5 bg-slate-800/80 rounded-xl text-white border border-slate-700/50">
-                        <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-xs font-semibold text-white">
-                            EV
-                        </div>
-                        <div className="text-xs min-w-0">
+                <div className="px-4 pt-6 pb-2 text-[10px] font-bold text-slate-500 tracking-wider">
+                    SUPPORT
+                </div>
+
+                <nav className="px-3 space-y-1">
+                    <SidebarNavItem icon={Bell} label="Notifications" />
+                    <SidebarNavItem icon={HelpCircle} label="Help & Support" />
+                </nav>
+
+                <div className="flex-1" />
+
+                <div className="p-3 border-t border-slate-800 space-y-1">
+                    <SidebarNavItem icon={Settings} label="Settings" />
+                    <button className="mt-2 w-full flex items-center gap-3 px-3 py-2.5 bg-slate-800/50 rounded-xl text-white border border-slate-700/50 hover:bg-slate-800 transition-colors cursor-pointer group">
+                        <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-xs font-semibold shrink-0">EV</div>
+                        <div className="text-xs min-w-0 flex-1 text-left">
                             <p className="font-semibold truncate">Dr. Eleanor Vance</p>
-                            <p className="text-[11px] text-slate-400">Super Admin</p>
+                            <p className="text-[11px] text-slate-400">Administrator</p>
                         </div>
-                    </div>
+                        <LogOut size={15} className="text-slate-500 group-hover:text-slate-300 transition-colors shrink-0" />
+                    </button>
                 </div>
             </aside>
 
-            {/* MAIN CONTENT AREA */}
-            <main className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300 ${isAddModalOpen ? 'opacity-95' : 'opacity-100'}`}>
-                {/* TOP HEADER */}
-                <header className="h-16 bg-white border-b border-slate-200/80 flex items-center justify-between px-4 lg:px-8 shrink-0 z-10">
-                    <div className="flex items-center gap-4 flex-1">
-                        <button onClick={() => setIsSidebarOpen(true)} className="md:hidden text-slate-500 hover:text-slate-800 p-1">
-                            <Menu size={22} />
-                        </button>
-                        <div className="relative w-full max-w-md hidden sm:block">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search staff by name, ID, or role..."
-                                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-600/30 focus:border-teal-600 transition-all"
-                            />
+            {/* SCROLLABLE PAGE BODY */}
+            <div className="scroll-area flex-1 overflow-y-auto p-4 lg:p-8 space-y-6">
+
+                {/* Page Title & Breadcrumb */}
+                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+                    <div>
+                        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                            <span>ADMINISTRATION</span>
+                            <span>&gt;</span>
+                            <span className="text-teal-700">STAFF MANAGEMENT</span>
                         </div>
+                        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Manage Staff</h2>
+                        <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
+                            Add, edit, and manage verified clinician identities, role clearance, and digital hospital badges.
+                        </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-slate-700 border border-slate-200 py-1.5 px-3 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors">
-                            <Building2 size={14} className="text-teal-600" />
-                            <span>City Central Branch</span>
-                            <ChevronDown size={12} className="text-slate-400 ml-0.5" />
-                        </div>
-
-                        <button className="relative text-slate-500 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-50 transition-colors">
-                            <Bell size={18} />
-                            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white"></span>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                        <button
+                            onClick={handleExport}
+                            aria-label="Export staff directory"
+                            className="px-3.5 py-2 border border-slate-200 bg-white text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs flex items-center gap-2 cursor-pointer"
+                        >
+                            <Download size={14} className="text-slate-500 shrink-0" />
+                            <span className="hidden sm:inline">Export Directory</span>
+                            <span className="sm:hidden">Export</span>
                         </button>
 
-                        <div className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-semibold cursor-pointer ring-2 ring-slate-100">
-                            EV
-                        </div>
+                        <button
+                            onClick={() => setIsAddModalOpen(true)}
+                            aria-label="Add staff member"
+                            className="px-3.5 py-2 bg-[#111827] hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-all shadow-xs flex items-center gap-2 cursor-pointer active:scale-95"
+                        >
+                            <Plus size={15} strokeWidth={2.5} className="shrink-0" />
+                            <span className="hidden sm:inline">Add Staff Member</span>
+                            <span className="sm:hidden">Add Staff</span>
+                        </button>
                     </div>
-                </header>
+                </div>
 
-                {/* SCROLLABLE PAGE BODY */}
-                <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-6">
-                    {/* Page Title & Breadcrumb */}
-                    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                {/* KPI Stat Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard title="TOTAL STAFF" value={totalElements.toString()} trend="+12 this quarter" trendStatus="good" icon={<Users size={18} className="text-teal-700" />} />
+                    <StatCard title="ACTIVE TODAY" value="284" trend="94% on-duty operational rate" trendStatus="good" icon={<ClipboardCheck size={18} className="text-teal-700" />} />
+                    <StatCard title="PENDING ACTIVATIONS" value="6" trend="Awaiting credential verification" trendStatus="warning" icon={<Clock size={18} className="text-amber-600" />} />
+                    <div className="bg-white p-5 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+                        <div className="flex justify-between items-start mb-2">
+                            <h3 className="text-[11px] font-bold text-slate-400 tracking-wider uppercase">BY ROLE BREAKDOWN</h3>
+                            <div className="p-1.5 bg-purple-50 rounded-lg text-purple-600">
+                                <PieChart size={18} />
+                            </div>
+                        </div>
                         <div>
-                            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                                <span>ADMINISTRATION</span>
-                                <span>&gt;</span>
-                                <span className="text-teal-700">STAFF MANAGEMENT</span>
-                            </div>
-                            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Manage Staff</h2>
-                            <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
-                                Add, edit, and manage verified clinician identities, role clearance, and digital hospital badges.
-                            </p>
-                        </div>
-
-                        <div className="flex items-center gap-2.5">
-                            <button
-                                onClick={handleExport}
-                                className="px-3.5 py-2 border border-slate-200 bg-white text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs flex items-center gap-2 cursor-pointer"
-                            >
-                                <Download size={14} className="text-slate-500" />
-                                Export Directory
-                            </button>
-
-                            <button
-                                onClick={() => setIsAddModalOpen(true)}
-                                className="px-3.5 py-2 bg-[#111827] hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-all shadow-xs flex items-center gap-2 cursor-pointer active:scale-95"
-                            >
-                                <Plus size={15} strokeWidth={2.5} /> Add Staff Member
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* KPI Stat Cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <StatCard
-                            title="TOTAL STAFF"
-                            value={totalElements.toString()}
-                            trend="+12 this quarter"
-                            trendStatus="good"
-                            icon={<Users size={18} className="text-teal-700" />}
-                        />
-                        <StatCard
-                            title="ACTIVE TODAY"
-                            value="284"
-                            trend="94% on-duty operational rate"
-                            trendStatus="good"
-                            icon={<ClipboardCheck size={18} className="text-teal-700" />}
-                        />
-                        <StatCard
-                            title="PENDING ACTIVATIONS"
-                            value="6"
-                            trend="Awaiting credential verification"
-                            trendStatus="warning"
-                            icon={<Clock size={18} className="text-amber-600" />}
-                        />
-                        <div className="bg-white p-5 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
-                            <div className="flex justify-between items-start mb-2">
-                                <h3 className="text-[11px] font-bold text-slate-400 tracking-wider uppercase">BY ROLE BREAKDOWN</h3>
-                                <div className="p-1.5 bg-purple-50 rounded-lg text-purple-600">
-                                    <PieChart size={18} />
-                                </div>
-                            </div>
-                            <div>
-                                <p className="text-base font-bold text-slate-900 leading-tight">142 Doctors / 126 Nurses</p>
-                                <p className="text-[11px] text-slate-500 mt-1">48 Administrative • 32 Laboratory Techs</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Filter & Search Bar */}
-                    <div className="bg-white p-3 rounded-t-xl border border-slate-200 border-b-0 flex flex-wrap gap-2.5 items-center justify-between">
-                        <div className="relative w-full md:w-72">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => {
-                                    setSearchQuery(e.target.value);
-                                    setActivePage(1);
-                                }}
-                                placeholder="Search staff by name, email, ID..."
-                                className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-teal-600"
-                            />
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                            {/* Role filter */}
-                            <div className="relative">
-                                <select
-                                    value={selectedRole}
-                                    onChange={(e) => {
-                                        setSelectedRole(e.target.value);
-                                        setActivePage(1);
-                                    }}
-                                    className="appearance-none bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer focus:outline-none"
-                                >
-                                    <option value="All Roles">All Roles</option>
-                                    <option value="Doctor">Doctor</option>
-                                    <option value="Nurse">Nurse</option>
-                                    <option value="Pathologist">Pathologist</option>
-                                    <option value="Insurance Coord.">Insurance Coord.</option>
-                                    <option value="Administrative">Administrative</option>
-                                    <option value="Lab Technician">Lab Technician</option>
-                                </select>
-                                <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                            </div>
-
-                            {/* Department filter */}
-                            <div className="relative">
-                                <select
-                                    value={selectedDept}
-                                    onChange={(e) => {
-                                        setSelectedDept(e.target.value);
-                                        setActivePage(1);
-                                    }}
-                                    className="appearance-none bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer focus:outline-none"
-                                >
-                                    <option value="All Departments">All Departments</option>
-                                    <option value="Cardiology">Cardiology</option>
-                                    <option value="General Medicine">General Medicine</option>
-                                    <option value="Emergency Care">Emergency Care</option>
-                                    <option value="Neurology">Neurology</option>
-                                    <option value="Orthopedics">Orthopedics</option>
-                                    <option value="Pathology">Pathology</option>
-                                </select>
-                                <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                            </div>
-
-                            {/* Status filter */}
-                            <div className="relative">
-                                <select
-                                    value={selectedStatus}
-                                    onChange={(e) => {
-                                        setSelectedStatus(e.target.value);
-                                        setActivePage(1);
-                                    }}
-                                    className="appearance-none bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer focus:outline-none"
-                                >
-                                    <option value="All Statuses">All Statuses</option>
-                                    <option value="Active">Active</option>
-                                    <option value="Inactive">Inactive</option>
-                                </select>
-                                <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                            </div>
-
-                            <button
-                                onClick={handleResetFilters}
-                                title="Reset filters"
-                                className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer"
-                            >
-                                <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
-                            </button>
-
-                            <button
-                                title="Filter options"
-                                className="p-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer"
-                            >
-                                <Filter size={14} />
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Data Table */}
-                    <div className="bg-white border border-slate-200 rounded-b-xl shadow-2xs overflow-x-auto">
-                        <table className="w-full text-left border-collapse min-w-[820px]">
-                            <thead>
-                                <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                                    <th className="p-4 py-3">Staff Member</th>
-                                    <th className="p-4 py-3">Staff ID</th>
-                                    <th className="p-4 py-3">Role</th>
-                                    <th className="p-4 py-3">Department</th>
-                                    <th className="p-4 py-3">Status</th>
-                                    <th className="p-4 py-3">Date Added</th>
-                                    <th className="p-4 py-3 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 text-xs">
-                                {filteredStaff.length > 0 ? (
-                                    filteredStaff.map((staff, idx) => (
-                                        <TableRow
-                                            key={staff.id + '-' + idx}
-                                            name={staff.name}
-                                            email={staff.email}
-                                            id={staff.id}
-                                            role={staff.role}
-                                            roleColor={staff.roleColor}
-                                            dept={staff.dept}
-                                            subDept={staff.subDept}
-                                            status={staff.status}
-                                            statusColor={staff.statusColor}
-                                            statusDot={staff.statusDot}
-                                            date={staff.date}
-                                            initials={staff.initials}
-                                            avatarUrl={staff.avatarUrl}
-                                            isNew={staff.date === 'Just Now'}
-                                            onEdit={() => handleEdit(staff)}
-                                            onDelete={() => handleDelete(staff)}
-                                        />
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan={7} className="p-8 text-center text-slate-400 text-xs">
-                                            No staff members match the selected filters.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-
-                        {/* Pagination Footer */}
-                        <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-                            <div>Showing 1-{filteredStaff.length} of {totalElements} staff members</div>
-                            <div className="flex items-center gap-1">
-                                <button
-                                    onClick={() => setActivePage(p => Math.max(1, p - 1))}
-                                    disabled={activePage <= 1}
-                                    className="px-2.5 py-1 hover:bg-slate-100 rounded text-xs font-medium cursor-pointer disabled:opacity-50"
-                                >
-                                    &lt; Previous
-                                </button>
-                                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(page => (
-                                    <button
-                                        key={page}
-                                        onClick={() => setActivePage(page)}
-                                        className={`w-7 h-7 flex items-center justify-center rounded-md font-semibold text-xs cursor-pointer ${
-                                            activePage === page ? 'bg-[#111827] text-white' : 'hover:bg-slate-100 text-slate-700'
-                                        }`}
-                                    >
-                                        {page}
-                                    </button>
-                                ))}
-                                {totalPages > 5 && <span className="px-1 text-slate-400">...</span>}
-                                <button
-                                    onClick={() => setActivePage(p => Math.min(totalPages, p + 1))}
-                                    disabled={activePage >= totalPages}
-                                    className="px-2.5 py-1 hover:bg-slate-100 rounded text-xs font-medium cursor-pointer disabled:opacity-50"
-                                >
-                                    Next &gt;
-                                </button>
-                            </div>
+                            <p className="text-base font-bold text-slate-900 leading-tight">142 Doctors / 126 Nurses</p>
+                            <p className="text-[11px] text-slate-500 mt-1">48 Administrative • 32 Laboratory Techs</p>
                         </div>
                     </div>
                 </div>
-            </main>
+
+                {/* Filter & Search Bar */}
+                <div className="bg-white p-3 rounded-t-xl border border-slate-200 border-b-0 flex flex-col xl:flex-row gap-3 xl:items-center justify-between">
+                    <div className="relative w-full xl:w-72 shrink-0">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => { setSearchQuery(e.target.value); setActivePage(1); }}
+                            placeholder="Search staff by name, email, ID..."
+                            aria-label="Search staff"
+                            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-teal-600"
+                        />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
+                        <div className="relative flex-1 min-w-[9.5rem] sm:flex-none">
+                            <select
+                                value={selectedRole}
+                                onChange={(e) => { setSelectedRole(e.target.value); setActivePage(1); }}
+                                aria-label="Filter by role"
+                                className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 pr-8 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer focus:outline-none"
+                            >
+                                <option value="All Roles">All Roles</option>
+                                <option value="Doctor">Doctor</option>
+                                <option value="Nurse">Nurse</option>
+                                <option value="Pathologist">Pathologist</option>
+                                <option value="Insurance Coord.">Insurance Coord.</option>
+                                <option value="Administrative">Administrative</option>
+                                <option value="Lab Technician">Lab Technician</option>
+                            </select>
+                            <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        </div>
+
+                        <div className="relative flex-1 min-w-[9.5rem] sm:flex-none">
+                            <select
+                                value={selectedDept}
+                                onChange={(e) => { setSelectedDept(e.target.value); setActivePage(1); }}
+                                aria-label="Filter by department"
+                                className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 pr-8 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer focus:outline-none"
+                            >
+                                <option value="All Departments">All Departments</option>
+                                <option value="Cardiology">Cardiology</option>
+                                <option value="General Medicine">General Medicine</option>
+                                <option value="Emergency Care">Emergency Care</option>
+                                <option value="Neurology">Neurology</option>
+                                <option value="Orthopedics">Orthopedics</option>
+                                <option value="Pathology">Pathology</option>
+                            </select>
+                            <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        </div>
+
+                        <div className="relative flex-1 min-w-[8rem] sm:flex-none">
+                            <select
+                                value={selectedStatus}
+                                onChange={(e) => { setSelectedStatus(e.target.value); setActivePage(1); }}
+                                aria-label="Filter by status"
+                                className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 pr-8 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer focus:outline-none"
+                            >
+                                <option value="All Statuses">All Statuses</option>
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                            <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        </div>
+
+                        <button
+                            onClick={handleResetFilters}
+                            title="Reset filters"
+                            aria-label="Reset filters"
+                            className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer"
+                        >
+                            <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
+                        </button>
+
+                        <button
+                            title="Filter options"
+                            aria-label="More filter options"
+                            className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer"
+                        >
+                            <Filter size={14} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Data Table */}
+                <div className="bg-white border border-slate-200 rounded-b-xl shadow-2xs overflow-x-auto relative">
+                    {isLoading && (
+                        <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[1px] flex items-center justify-center">
+                            <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-200 shadow-sm">
+                                <Loader2 size={14} className="animate-spin text-teal-600" />
+                                <span className="text-xs font-medium text-slate-600">Loading staff…</span>
+                            </div>
+                        </div>
+                    )}
+                    <table className="w-full text-left border-collapse min-w-[820px]">
+                        <thead className="sticky top-0 z-[5]">
+                        <tr className="bg-slate-50/95 backdrop-blur-sm border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                            <th className="p-4 py-3">Staff Member</th>
+                            <th className="p-4 py-3">Staff ID</th>
+                            <th className="p-4 py-3">Role</th>
+                            <th className="p-4 py-3">Department</th>
+                            <th className="p-4 py-3">Status</th>
+                            <th className="p-4 py-3">Date Added</th>
+                            <th className="p-4 py-3 text-right">Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-xs">
+                        {filteredStaff.length > 0 ? (
+                            filteredStaff.map((staff, idx) => (
+                                <TableRow
+                                    key={staff.id + '-' + idx}
+                                    {...staff}
+                                    isNew={staff.date === 'Just Now'}
+                                    onEdit={() => handleEdit(staff)}
+                                    onDelete={() => handleDelete(staff)}
+                                />
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan={7} className="p-10 text-center text-slate-400 text-xs">
+                                    <Search size={22} className="mx-auto mb-2 text-slate-300" />
+                                    No staff members match the selected filters.
+                                </td>
+                            </tr>
+                        )}
+                        </tbody>
+                    </table>
+
+                    {/* Pagination Footer */}
+                    <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+                        <div>Showing 1-{filteredStaff.length} of {totalElements} staff members</div>
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => setActivePage(p => Math.max(1, p - 1))}
+                                disabled={activePage <= 1}
+                                aria-label="Previous page"
+                                className="px-2.5 py-1 hover:bg-slate-100 rounded text-xs font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                &lt; Previous
+                            </button>
+                            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(page => (
+                                <button
+                                    key={page}
+                                    onClick={() => setActivePage(page)}
+                                    aria-label={`Go to page ${page}`}
+                                    aria-current={activePage === page ? 'page' : undefined}
+                                    className={`w-7 h-7 flex items-center justify-center rounded-md font-semibold text-xs cursor-pointer ${
+                                        activePage === page ? 'bg-[#111827] text-white' : 'hover:bg-slate-100 text-slate-700'
+                                    }`}
+                                >
+                                    {page}
+                                </button>
+                            ))}
+                            {totalPages > 5 && <span className="px-1 text-slate-400">...</span>}
+                            <button
+                                onClick={() => setActivePage(p => Math.min(totalPages, p + 1))}
+                                disabled={activePage >= totalPages}
+                                aria-label="Next page"
+                                className="px-2.5 py-1 hover:bg-slate-100 rounded text-xs font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Next &gt;
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             {/* MULTI-STEP ADD STAFF MEMBER DRAWER MODAL */}
             <AddMedicModal
@@ -674,18 +638,28 @@ export default function StaffDashboard() {
    HELPER COMPONENTS
    ========================================= */
 
-function NavItem({ icon, label, active = false }: { icon: React.ReactNode; label: string; active?: boolean }) {
+function SidebarNavItem({ icon: Icon, label, active = false }: { icon: any; label: string; active?: boolean }) {
     return (
         <a
             href="#"
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg mb-0.5 transition-colors ${
+            aria-current={active ? 'page' : undefined}
+            className={`group relative flex items-center gap-3 pl-3 pr-3 py-2 rounded-lg transition-colors ${
                 active
-                    ? 'bg-slate-800 text-white font-medium shadow-2xs'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                    ? 'bg-slate-800 text-white font-medium shadow-sm'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
             }`}
         >
-            {icon}
-            <span className="text-xs">{label}</span>
+            {active && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-teal-400" />
+            )}
+            <span
+                className={`flex items-center justify-center w-7 h-7 rounded-md shrink-0 transition-colors ${
+                    active ? 'bg-teal-500/15 text-teal-400' : 'text-slate-400 group-hover:text-white'
+                }`}
+            >
+                <Icon size={16} />
+            </span>
+            <span className="text-sm truncate">{label}</span>
         </a>
     );
 }
@@ -710,26 +684,12 @@ function StatCard({ title, value, trend, icon, trendStatus = 'good' }: any) {
 }
 
 function TableRow({
-    name,
-    email,
-    id,
-    role,
-    roleColor,
-    dept,
-    subDept,
-    status,
-    date,
-    initials,
-    avatarUrl,
-    isNew = false,
-    onEdit,
-    onDelete,
-}: any) {
+                      name, email, id, role, roleColor, dept, subDept, status, date, initials, avatarUrl, isNew = false, onEdit, onDelete
+                  }: any) {
     const isInactive = status === 'Inactive';
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
-    // Close dropdown when clicking outside
     useEffect(() => {
         if (!menuOpen) return;
         const handler = (e: MouseEvent) => {
@@ -746,18 +706,12 @@ function TableRow({
             <td className="p-4">
                 <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-slate-200 border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-700 overflow-hidden shrink-0">
-                        {avatarUrl ? (
-                            <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
-                        ) : (
-                            initials
-                        )}
+                        {avatarUrl ? <img src={avatarUrl} alt={name} className="w-full h-full object-cover" /> : initials}
                     </div>
                     <div>
                         <div className="flex items-center gap-1.5">
                             <p className="font-semibold text-slate-900">{name}</p>
-                            {isNew && (
-                                <span className="text-[9px] bg-teal-100 text-teal-800 font-bold px-1.5 py-0.5 rounded">NEW</span>
-                            )}
+                            {isNew && <span className="text-[9px] bg-teal-100 text-teal-800 font-bold px-1.5 py-0.5 rounded">NEW</span>}
                         </div>
                         <p className="text-[11px] text-slate-400">{email}</p>
                     </div>
@@ -765,9 +719,7 @@ function TableRow({
             </td>
             <td className="p-4 font-mono text-[11px] text-slate-600 font-medium">{id}</td>
             <td className="p-4">
-                <span className={`inline-flex px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${roleColor}`}>
-                    {role}
-                </span>
+                <span className={`inline-flex px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${roleColor}`}>{role}</span>
             </td>
             <td className="p-4">
                 <p className="font-semibold text-slate-900">{dept}</p>
@@ -776,9 +728,7 @@ function TableRow({
             <td className="p-4">
                 <div className="flex items-center gap-1.5">
                     <span className={`w-1.5 h-1.5 rounded-full ${isInactive ? 'bg-slate-400' : 'bg-teal-500'}`} />
-                    <span className={`text-xs font-medium ${isInactive ? 'text-slate-600' : 'text-teal-700'}`}>
-                        {status}
-                    </span>
+                    <span className={`text-xs font-medium ${isInactive ? 'text-slate-600' : 'text-teal-700'}`}>{status}</span>
                 </div>
             </td>
             <td className="p-4 text-slate-500 text-xs">{date}</td>
@@ -786,28 +736,33 @@ function TableRow({
                 <div className="relative inline-block" ref={menuRef}>
                     <button
                         onClick={() => setMenuOpen(o => !o)}
-                        className="text-slate-400 hover:text-slate-700 p-1.5 rounded-md hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
-                        title="Actions"
+                        aria-label={`More actions for ${name}`}
+                        aria-haspopup="menu"
+                        aria-expanded={menuOpen}
+                        className="text-slate-400 hover:text-slate-700 p-1.5 rounded-md hover:bg-slate-100 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all cursor-pointer"
                     >
                         <MoreVertical size={16} />
                     </button>
 
                     {menuOpen && (
-                        <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                        <div
+                            role="menu"
+                            className="absolute right-0 top-full mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+                        >
                             <button
+                                role="menuitem"
                                 onClick={() => { setMenuOpen(false); onEdit?.(); }}
                                 className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
                             >
-                                <Edit2 size={13} />
-                                Edit Details
+                                <Edit2 size={13} /> Edit Details
                             </button>
                             <div className="mx-3 border-t border-slate-100" />
                             <button
+                                role="menuitem"
                                 onClick={() => { setMenuOpen(false); onDelete?.(); }}
                                 className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                             >
-                                <Trash2 size={13} />
-                                Deactivate
+                                <Trash2 size={13} /> Deactivate
                             </button>
                         </div>
                     )}
