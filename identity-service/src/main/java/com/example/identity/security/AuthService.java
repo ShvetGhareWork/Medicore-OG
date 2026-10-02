@@ -19,7 +19,9 @@ import org.springframework.stereotype.Service;
 import com.example.identity.service.AdminAuditLogService;
 import org.springframework.security.authentication.LockedException;
 
+import org.springframework.beans.factory.annotation.Value;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -31,14 +33,17 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthUtil authUtil;
     private final AdminAuditLogService auditLogService;
+    private final String adminRegistrationSecret;
 
     public AuthService(AuthenticationManager authenticationManager, UserRepository userRepository,
-                       PasswordEncoder passwordEncoder, AuthUtil authUtil, AdminAuditLogService auditLogService) {
+                       PasswordEncoder passwordEncoder, AuthUtil authUtil, AdminAuditLogService auditLogService,
+                       @Value("${app.security.admin-registration-secret:MediCore@AdminSecret2026}") String adminRegistrationSecret) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authUtil = authUtil;
         this.auditLogService = auditLogService;
+        this.adminRegistrationSecret = adminRegistrationSecret;
     }
 
     public LoginResponseDto login(LoginRequestDto loginRequestDto) {
@@ -108,7 +113,15 @@ public class AuthService {
         }
 
         String token = authUtil.generateAccessToken(user);
-        return new LoginResponseDto(token, user.getId());
+        return new LoginResponseDto(
+                token,
+                user.getId(),
+                user.getFullName() != null && !user.getFullName().isBlank() ? user.getFullName() : user.getUsername(),
+                user.getEmail() != null ? user.getEmail() : "",
+                user.getUsername(),
+                user.getStaffId() != null ? user.getStaffId() : "",
+                user.getRoles().stream().map(Enum::name).toList()
+        );
     }
 
     public LoginResponseDto badgeLogin(BadgeLoginRequest badgeLoginRequest) {
@@ -132,7 +145,15 @@ public class AuthService {
                 user.getRoles().toString(), "SUCCESS", "Hardware badge verified successfully");
 
         String token = authUtil.generateAccessToken(user);
-        return new LoginResponseDto(token, user.getId());
+        return new LoginResponseDto(
+                token,
+                user.getId(),
+                user.getFullName() != null && !user.getFullName().isBlank() ? user.getFullName() : user.getUsername(),
+                user.getEmail() != null ? user.getEmail() : "",
+                user.getUsername(),
+                user.getStaffId() != null ? user.getStaffId() : "",
+                user.getRoles().stream().map(Enum::name).toList()
+        );
     }
 
     public User signUpInternal(SignUpRequestDto signUpRequestDto, AuthProviderType authProviderType, String providerId) {
@@ -196,5 +217,51 @@ public class AuthService {
 
         LoginResponseDto loginResponseDto = new LoginResponseDto(authUtil.generateAccessToken(user), user.getId());
         return ResponseEntity.ok(loginResponseDto);
+    }
+
+    public Map<String, Object> registerAdmin(AdminRegisterRequestDto request) {
+        if (!adminRegistrationSecret.equals(request.getSecretKey())) {
+            auditLogService.logEvent("ADMIN_REGISTRATION_FAILED", request.getUsername(), null,
+                    "ADMIN", "FORBIDDEN", "Invalid admin registration secret key provided");
+            throw new BadCredentialsException("Invalid Admin Master Secret Key. Administrative registration denied.");
+        }
+
+        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
+            throw new IllegalArgumentException("Username '" + request.getUsername() + "' is already in use.");
+        }
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("Email address '" + request.getEmail() + "' is already registered.");
+        }
+
+        String staffId = "ADM-2026-" + String.format("%04d", (int) (Math.random() * 9000) + 1000);
+        while (userRepository.findByStaffId(staffId).isPresent()) {
+            staffId = "ADM-2026-" + String.format("%04d", (int) (Math.random() * 9000) + 1000);
+        }
+
+        User adminUser = User.builder()
+                .username(request.getUsername().trim())
+                .email(request.getEmail().trim())
+                .fullName(request.getFullName().trim())
+                .staffId(staffId)
+                .providerType(AuthProviderType.EMAIL)
+                .password(passwordEncoder.encode(request.getPassword()))
+                .roles(Set.of(RoleType.ADMIN, RoleType.ADMINISTRATIVE))
+                .status(StaffStatusType.ACTIVE)
+                .build();
+
+        User saved = userRepository.save(adminUser);
+
+        auditLogService.logEvent("ADMIN_REGISTERED", saved.getUsername(), saved.getId(),
+                saved.getRoles().toString(), "SUCCESS", "Administrator account created with Staff ID " + staffId);
+
+        Map<String, Object> response = new java.util.HashMap<>();
+        response.put("status", "SUCCESS");
+        response.put("message", "Administrator account registered successfully.");
+        response.put("userId", saved.getId());
+        response.put("username", saved.getUsername());
+        response.put("email", saved.getEmail());
+        response.put("staffId", saved.getStaffId());
+        response.put("fullName", saved.getFullName() != null ? saved.getFullName() : saved.getUsername());
+        return response;
     }
 }

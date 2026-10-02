@@ -43,6 +43,11 @@ public class AuthController {
         ));
     }
 
+    @PostMapping("/admin/register")
+    public ResponseEntity<Map<String, Object>> registerAdmin(@Valid @RequestBody AdminRegisterRequestDto adminRegisterRequestDto) {
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(authService.registerAdmin(adminRegisterRequestDto));
+    }
+
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDto> login(@RequestBody LoginRequestDto loginRequestDto) {
         return ResponseEntity.ok(authService.login(loginRequestDto));

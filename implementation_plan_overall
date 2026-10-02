@@ -1,0 +1,406 @@
+# MediCore — Full Implementation Plan
+## Clinical Worker Portal + Patient Journey Portal
+
+> **What's already built:** Landing page → Login/Register (password + Google OAuth) → Admin Dashboard (`/dashboard`, `/admissions`, `/activity`) with staff management, role-based JWT middleware, and API stubs for `staffApi` and `admissionsApi`.
+
+---
+
+## Architecture Overview
+
+```mermaid
+graph TD
+    LandingPage --> Login
+    Login -->|ROLE: ADMIN| AdminDashboard["/dashboard (Admin Shell)"]
+    Login -->|ROLE: DOCTOR/NURSE| ClinicalTerminal["/terminal (Clinical Shell)"]
+    Login -->|ROLE: PATIENT| PatientPortal["/portal (Patient Shell)"]
+
+    AdminDashboard --> StaffDir & Admissions & Activity
+    ClinicalTerminal --> PatientSearch & ClinicalWorkspace
+    ClinicalWorkspace --> Assessment & Vitals & Orders & Notes & Discharge
+    PatientPortal --> Timeline & Appointments & Billing & Insurance
+```
+
+---
+
+## What Exists vs. What Needs Building
+
+| Area | Status | Notes |
+|---|---|---|
+| Landing page | ✅ Done | `LandingPage.tsx` |
+| Login / Register | ✅ Done | Password + Google OAuth |
+| Admin shell + nav | ✅ Done | `AdminShell.tsx` |
+| Admin dashboard (staff) | ✅ Done | `DashboardPage.tsx` |
+| Admissions page | ✅ Done | `admissionsApi.ts` wired |
+| JWT middleware (role guard) | ✅ Done | Guards `/dashboard`, `/terminal`, `/portal` |
+| **Clinical terminal stub** | ⚠️ Stub | Only QR/PIN connect screen; workspace is empty |
+| **Clinical workspace** | ❌ Missing | `/terminal/workspace` page is empty |
+| **Patient portal stub** | ⚠️ Stub | Only magic-link login screen; no real pages |
+| **Patient journey pages** | ❌ Missing | Assessment → Vitals → Orders → Notes → Billing |
+| `patientApi.ts` | ❌ Missing | No patient API layer |
+| `clinicalApi.ts` | ❌ Missing | No clinical API layer |
+| Backend: patient-service | ⚠️ Exists | Java Spring Boot service — needs endpoints verified |
+| Backend: doctor-service | ⚠️ Exists | Java Spring Boot service — needs endpoints verified |
+| Backend: insurance-service | ⚠️ Exists | Java Spring Boot service — needs endpoints verified |
+| Backend: appointment-service | ⚠️ Exists | Java Spring Boot service — needs endpoints verified |
+
+---
+
+## Part 1 — Clinical Worker Portal
+
+### 1.1 Who Uses It
+Doctors, nurses, pathologists, lab technicians — anyone with role `DOCTOR | NURSE | PATHOLOGIST | LAB_TECHNICIAN`. They log in from a **shared bedside workstation** already in the room.
+
+### 1.2 Login Flow (Clinical)
+The existing login page already routes based on JWT role. After login with a clinical role, the middleware sends the user to `/terminal`.
+
+**Enhancement needed:** The login page currently always redirects to `/dashboard`. We need role-aware redirect in `LoginPage.tsx`:
+
+```typescript
+// After successful login, decode role and redirect accordingly
+const roles = getRolesFromJwt(result.jwt);
+if (roles.includes("ADMIN") || roles.includes("ADMINISTRATIVE")) {
+  router.push("/dashboard");
+} else if (roles.includes("DOCTOR") || roles.includes("NURSE") || ...) {
+  router.push("/terminal");
+} else if (roles.includes("PATIENT")) {
+  router.push("/portal");
+}
+```
+
+### 1.3 Clinical Shell (Layout)
+New file: `components/clinical/ClinicalShell.tsx`
+
+- Dark teal sidebar (distinct from admin's slate sidebar)
+- Nav items: **Patient Search**, **Active Patients**, **My Schedule**, **Handover Notes**
+- Inactivity auto-lock (existing `InactivityLogout.tsx` already handles 3-min auto-lock ✅)
+- Top bar shows clinician name + role badge + ward/department
+
+### 1.4 Clinical Routes to Build
+
+```
+/terminal                    → Lock screen (QR/PIN connect) ← already exists
+/terminal/workspace          → Clinical shell wraps all below
+/terminal/workspace/patients → Patient search list
+/terminal/workspace/[patientId]          → Patient overview
+/terminal/workspace/[patientId]/assessment    → Initial assessment form
+/terminal/workspace/[patientId]/vitals        → Vitals chart + entry
+/terminal/workspace/[patientId]/orders        → Medication & lab orders
+/terminal/workspace/[patientId]/notes         → SOAP notes / progress notes
+/terminal/workspace/[patientId]/discharge     → Discharge summary
+```
+
+### 1.5 Clinical Pages — Feature Detail
+
+#### Patient Search (`/terminal/workspace/patients`)
+- Search by name, patient ID, bed number, ward
+- Cards: Patient name, age, primary diagnosis, attending doctor, bed, admission date
+- Status badges: Stable / Critical / Under Observation / Pending Labs
+
+#### Patient Overview (`/terminal/workspace/[patientId]`)
+- Left: Demographics sidebar (name, DOB, blood group, allergies, emergency contact)
+- Right: Active conditions, current medications, latest vitals strip, alert flags
+
+#### Initial Assessment (`/terminal/workspace/[patientId]/assessment`)
+- Chief complaint, history of present illness
+- Past medical/surgical/family history
+- Physical exam findings
+- Preliminary diagnosis (ICD-10 code picker)
+- Admission reason + severity score
+
+#### Vitals (`/terminal/workspace/[patientId]/vitals`)
+- Time-series chart (recharts or similar) for BP, HR, SpO2, Temp, RR, GCS
+- Manual entry form with timestamp
+- Alert thresholds visually highlighted
+
+#### Orders (`/terminal/workspace/[patientId]/orders`)
+- Medication orders: drug, dose, route, frequency, duration, prescribing doctor
+- Lab orders: test name, priority (routine/urgent/STAT), sample type
+- Imaging orders: modality, body part, clinical indication
+- Order status: Pending → Collected → Processing → Resulted
+
+#### Progress Notes (`/terminal/workspace/[patientId]/notes`)
+- SOAP format sections (Subjective, Objective, Assessment, Plan)
+- Rich text editor (or structured fields)
+- Timestamp + author auto-stamped
+- View note history / previous entries
+
+#### Discharge Summary (`/terminal/workspace/[patientId]/discharge`)
+- Discharge diagnosis, procedures performed
+- Discharge instructions, medications at discharge
+- Follow-up appointments
+- Generates PDF summary (triggers patient portal update)
+
+### 1.6 API Layer: `lib/api/clinicalApi.ts`
+
+```typescript
+// Endpoints to create
+getPatientList(ward?, search?)      → GET /api/patients
+getPatient(patientId)               → GET /api/patients/{id}
+getVitals(patientId)                → GET /api/patients/{id}/vitals
+addVitals(patientId, data)          → POST /api/patients/{id}/vitals
+getOrders(patientId)                → GET /api/patients/{id}/orders
+createOrder(patientId, order)       → POST /api/patients/{id}/orders
+getNotes(patientId)                 → GET /api/patients/{id}/notes
+addNote(patientId, note)            → POST /api/patients/{id}/notes
+getAssessment(patientId)            → GET /api/patients/{id}/assessment
+saveAssessment(patientId, data)     → PUT /api/patients/{id}/assessment
+createDischarge(patientId, data)    → POST /api/patients/{id}/discharge
+```
+
+---
+
+## Part 2 — Patient Journey Portal
+
+### 2.1 Who Uses It
+Patients themselves. Role: `PATIENT`. They log into `/portal` from any device (mobile-first).
+
+### 2.2 Login Flow (Patient)
+- Existing login page handles this — just needs role-aware redirect (see §1.2)
+- Patient portal also supports **passwordless / OTP / magic-link** (stub already in `PatientPortal.tsx`)
+- The existing stub at `/portal` is just a sign-in screen — needs replacing with a full portal shell
+
+### 2.3 Patient Shell (Layout)
+New file: `components/patient/PatientShell.tsx`
+
+- Mobile-first bottom nav (Home, Timeline, Appointments, Documents, Billing)
+- Top bar: Patient name, MRN, attending doctor name
+- Clean white + teal color scheme (already started in existing stub)
+
+### 2.4 Patient Routes to Build
+
+```
+/portal                         → Login / OTP (existing stub)
+/portal/home                    → Dashboard summary card
+/portal/timeline                → Full care journey timeline
+/portal/timeline/assessment     → View initial assessment
+/portal/timeline/vitals         → View vitals history (read-only)
+/portal/timeline/orders         → View medication & test orders
+/portal/timeline/notes          → View doctor notes (read-only)
+/portal/timeline/discharge      → View discharge summary
+/portal/appointments            → Appointments list + upcoming
+/portal/appointments/[id]       → Appointment detail
+/portal/documents               → Lab results, reports, prescriptions
+/portal/billing                 → Bill summary + itemized breakdown
+/portal/billing/payment         → Payment gateway integration
+/portal/insurance               → Insurance claim status
+/portal/insurance/[claimId]     → Claim detail + document upload
+/portal/profile                 → Patient profile + emergency contacts
+```
+
+### 2.5 Patient Pages — Feature Detail
+
+#### Home Dashboard (`/portal/home`)
+- Welcome banner with patient name and admission status
+- Quick-action cards: View Timeline, Next Appointment, Outstanding Bill, Message Doctor
+- Current care team card (attending doctor, nurse, ward)
+- Health alerts / notifications from clinical team
+
+#### Care Timeline (`/portal/timeline`)
+- Chronological vertical timeline from admission to present
+- Each event: Initial Assessment, Lab Results, Medication Started, Doctor Visit, Procedure
+- Tap each event to expand detail view
+- Status: Completed ✅ / Pending ⏳ / Requires Action ⚠️
+
+#### Vitals View (`/portal/timeline/vitals`)
+- Read-only chart of all recorded vitals
+- Last reading prominently displayed with color-coded status (normal/abnormal)
+
+#### Orders View (`/portal/timeline/orders`)
+- List of prescribed medications with dosage, schedule, next dose
+- Pending lab tests with "Sample collected / Results awaited" status
+- Imaging results with preview thumbnail
+
+#### Appointments (`/portal/appointments`)
+- Upcoming: date, time, doctor, department, location, "Add to Calendar" button
+- Past appointments with visit summary link
+- Reschedule / cancel flow (if within policy window)
+
+#### Documents (`/portal/documents`)
+- Lab reports, imaging reports, prescriptions, discharge letter
+- Download as PDF
+- Uploaded documents from insurance section also appear here
+
+#### Billing (`/portal/billing`)
+- Total outstanding balance
+- Itemized table: Consultation, Procedures, Medications, Room Charges, Investigations
+- Payment history
+- "Pay Now" CTA → payment gateway (Stripe/Razorpay integration)
+
+#### Insurance (`/portal/insurance`)
+- Active insurance policy summary (provider, policy number, coverage)
+- Claim status: Initiated → Documents Submitted → Under Review → Approved/Rejected
+- Upload supporting documents
+- Pre-authorization tracking
+
+### 2.6 API Layer: `lib/api/patientApi.ts`
+
+```typescript
+// Endpoints to create
+getPatientProfile()                  → GET /api/patients/me
+getTimeline()                        → GET /api/patients/me/timeline
+getMyVitals()                        → GET /api/patients/me/vitals
+getMyOrders()                        → GET /api/patients/me/orders
+getMyNotes()                         → GET /api/patients/me/notes
+getMyAppointments()                  → GET /api/appointments/me
+getAppointment(id)                   → GET /api/appointments/{id}
+getDocuments()                       → GET /api/patients/me/documents
+getBilling()                         → GET /api/billing/me
+getInsuranceClaims()                 → GET /api/insurance/me/claims
+getClaim(claimId)                    → GET /api/insurance/me/claims/{id}
+uploadClaimDocument(claimId, file)   → POST /api/insurance/me/claims/{id}/documents
+```
+
+---
+
+## Part 3 — Backend Microservice Updates
+
+### 3.1 Identity Service (`identity-service`)
+- ✅ Already handles login + Google OAuth
+- **Add:** role-to-redirect claim in JWT response body so frontend can parse redirect destination
+
+### 3.2 Patient Service (`patient-service`)
+Endpoints needed:
+- `GET /api/patients` — list with search + ward filter (for clinical view)
+- `GET /api/patients/{id}` — full patient record
+- `GET /api/patients/me` — patient's own record (from JWT subject)
+- `GET/POST /api/patients/{id}/vitals`
+- `GET/POST /api/patients/{id}/notes`
+- `GET/PUT /api/patients/{id}/assessment`
+- `GET /api/patients/me/timeline` — aggregated timeline events
+
+### 3.3 Doctor Service (`doctor-service`)
+- `GET/POST /api/patients/{id}/orders` — medication, lab, imaging orders
+- `POST /api/patients/{id}/discharge` — create discharge summary
+- `GET /api/patients/me/notes` — patient-facing note view
+
+### 3.4 Appointment Service (`appointment-service`)
+- `GET /api/appointments/me` — patient's appointments
+- `GET /api/appointments?patient={id}` — clinician view of patient appointments
+
+### 3.5 Insurance Service (`insurance-service`)
+- `GET /api/insurance/me/claims`
+- `GET /api/insurance/me/claims/{id}`
+- `POST /api/insurance/me/claims/{id}/documents`
+
+### 3.6 New: Billing Service
+- Not in the current folder list — needs to be created or housed in `patient-service`
+- `GET /api/billing/me` — itemized bill for patient
+- `POST /api/billing/me/payment` — initiate payment
+
+---
+
+## Part 4 — Shared Infrastructure
+
+### 4.1 Auth Utility (`lib/auth.ts`)
+```typescript
+// Decode JWT and return roles + user info
+export function decodeToken(token: string): { roles: string[], userId: string, name: string }
+// Get redirect path based on roles
+export function getRedirectPath(roles: string[]): string
+```
+
+### 4.2 API Client Base (`lib/api/apiClient.ts`)
+- Centralized fetch wrapper with JWT injection from cookie
+- Error handling: 401 → redirect to login, 403 → show unauthorized
+- Loading state + retry logic
+
+### 4.3 Middleware Enhancement
+Current middleware already guards routes. No change needed for routing rules.
+
+---
+
+## Implementation Phases
+
+### Phase 1 — Clinical Shell + Patient Search (1-2 days)
+1. Fix role-aware redirect in `LoginPage.tsx`
+2. Build `ClinicalShell.tsx` (sidebar nav, inactivity lock)
+3. Wire `(clinical)/layout.tsx` to use `ClinicalShell`
+4. Build `/terminal/workspace/patients` — patient search & list
+5. Build `clinicalApi.ts` stubs (mock data first)
+
+### Phase 2 — Clinical Workspace Pages (2-3 days)
+6. Patient overview page `[patientId]`
+7. Assessment form
+8. Vitals chart + entry
+9. Orders management
+10. Progress notes
+
+### Phase 3 — Patient Portal Shell + Timeline (2-3 days)
+11. Build `PatientShell.tsx` (mobile-first bottom nav)
+12. Wire `(patient)/layout.tsx` to use `PatientShell`
+13. Build `/portal/home` dashboard
+14. Build `/portal/timeline` chronological view
+15. Build `patientApi.ts` stubs
+
+### Phase 4 — Patient Portal Feature Pages (2-3 days)
+16. Appointments pages
+17. Documents page
+18. Billing + payment page
+19. Insurance & claims page
+20. Discharge summary view
+
+### Phase 5 — Backend Wiring + Integration (3-4 days)
+21. Verify and extend `patient-service` REST endpoints
+22. Verify and extend `doctor-service` REST endpoints
+23. Wire all frontend API stubs to real backend
+24. End-to-end test: Login → Clinical → enter data → Login → Patient → see data
+
+### Phase 6 — Polish (1-2 days)
+25. Discharge summary → triggers update to patient portal timeline
+26. PDF export for discharge summary and billing
+27. Real-time updates (polling or WebSocket) for vitals & order status
+28. Mobile responsiveness audit for patient portal
+
+---
+
+## File Creation Checklist
+
+### Frontend — New Files
+```
+components/clinical/ClinicalShell.tsx
+components/patient/PatientShell.tsx
+lib/auth.ts
+lib/api/apiClient.ts
+lib/api/clinicalApi.ts
+lib/api/patientApi.ts
+pages/clinicalworkspace/PatientListPage.tsx
+pages/clinicalworkspace/PatientOverviewPage.tsx
+pages/clinicalworkspace/AssessmentPage.tsx
+pages/clinicalworkspace/VitalsPage.tsx
+pages/clinicalworkspace/OrdersPage.tsx
+pages/clinicalworkspace/NotesPage.tsx
+pages/clinicalworkspace/DischargePage.tsx
+pages/patientportal/PatientHomePage.tsx
+pages/patientportal/TimelinePage.tsx
+pages/patientportal/AppointmentsPage.tsx
+pages/patientportal/DocumentsPage.tsx
+pages/patientportal/BillingPage.tsx
+pages/patientportal/InsurancePage.tsx
+```
+
+### Frontend — Files to Modify
+```
+pages/loginpage/LoginPage.tsx      → role-aware redirect after login
+app/(clinical)/layout.tsx          → swap to ClinicalShell
+app/(patient)/layout.tsx           → swap to PatientShell
+app/(clinical)/terminal/workspace/page.tsx  → route to PatientListPage
+app/(patient)/portal/home/page.tsx  → new route
+```
+
+---
+
+## Design Language
+
+| Portal | Primary color | Theme | Typography feel |
+|---|---|---|---|
+| Admin | Slate-950 sidebar, teal accent | Corporate, authoritative | Dense data tables |
+| Clinical | Dark teal sidebar, cyan accent | Focused, clinical | Clear, large touch targets |
+| Patient | White + soft teal | Friendly, accessible | Large text, mobile-first |
+
+---
+
+> [!NOTE]
+> Start with **Phase 1** by fixing the login redirect and building `ClinicalShell`. The existing stub at `/terminal` already handles the lock screen — the first real work is the workspace behind it.
+
+> [!TIP]
+> Use **mock data first** in all API files so UI development can proceed independently of backend readiness. Replace with real API calls in Phase 5.

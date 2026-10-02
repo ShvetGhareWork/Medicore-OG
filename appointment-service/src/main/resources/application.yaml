@@ -30,27 +30,48 @@ eureka:
 
 resilience4j:
   circuitbreaker:
+    circuit-breaker-aspect-order: 1
+    configs:
+      default:
+        sliding-window-size: 10
+        permitted-number-of-calls-in-half-open-state: 3
+        sliding-window-type: COUNT_BASED
+        minimum-number-of-calls: 5
+        wait-duration-in-open-state: 5000ms
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 70
+        slow-call-duration-threshold: 2000ms
+        register-health-indicator: true
     instances:
+      patient-service:
+        base-config: default
+      doctor-service:
+        base-config: default
       patientService:
-        sliding-window-size: 10
-        permitted-number-of-calls-in-half-open-state: 3
-        sliding-window-type: COUNT_BASED
-        minimum-number-of-calls: 5
-        wait-duration-in-open-state: 5000ms
-        failure-rate-threshold: 50
+        base-config: default
       doctorService:
-        sliding-window-size: 10
-        permitted-number-of-calls-in-half-open-state: 3
-        sliding-window-type: COUNT_BASED
-        minimum-number-of-calls: 5
-        wait-duration-in-open-state: 5000ms
-        failure-rate-threshold: 50
+        base-config: default
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 3s
+        cancel-running-future: true
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,circuitbreakers,circuitbreakerevents
   endpoint:
     health:
       show-details: always
+  health:
+    circuitbreakers:
+      enabled: true

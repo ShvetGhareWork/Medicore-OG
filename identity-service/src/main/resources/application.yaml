@@ -4,6 +4,8 @@ server:
 app:
   cors:
     allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:3000}
+  security:
+    admin-registration-secret: ${ADMIN_REGISTRATION_SECRET:MediCore@AdminSecret2026}
 
 spring:
   application:

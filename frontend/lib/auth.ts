@@ -5,8 +5,21 @@ export interface TokenClaims {
   userId?: string;
   roles?: string[] | string;
   role?: string;
+  fullName?: string;
+  name?: string;
+  email?: string;
+  staffId?: string;
   exp?: number;
   iat?: number;
+}
+
+export interface UserProfile {
+  username: string;
+  fullName: string;
+  email: string;
+  staffId: string;
+  roles: string[];
+  initials: string;
 }
 
 export function extractRoles(token: string): string[] {
@@ -18,6 +31,87 @@ export function extractRoles(token: string): string[] {
     );
   } catch {
     return [];
+  }
+}
+
+export function getUserProfile(tokenInput?: string): UserProfile {
+  if (typeof window !== "undefined") {
+    try {
+      const stored = localStorage.getItem("userProfile");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && (parsed.fullName || parsed.username)) {
+          const name = parsed.fullName || parsed.username || "Administrator";
+          const nameParts = name.replace(/^(Dr\.|Mr\.|Mrs\.|Ms\.|Prof\.)\s*/i, "").trim().split(" ");
+          const initials = nameParts.length >= 2
+            ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
+            : name.slice(0, 2).toUpperCase();
+
+          return {
+            username: parsed.username || "",
+            fullName: name,
+            email: parsed.email || "",
+            staffId: parsed.staffId || "",
+            roles: parsed.roles || ["ADMIN"],
+            initials: initials || "AD",
+          };
+        }
+      }
+    } catch {
+      // Ignore JSON parse error, fall back to token decoding
+    }
+  }
+
+  let token = tokenInput;
+  if (!token && typeof window !== "undefined") {
+    token = localStorage.getItem("token") || undefined;
+  }
+
+  if (!token) {
+    return {
+      username: "admin",
+      fullName: "Administrator",
+      email: "admin@medicore.org",
+      staffId: "",
+      roles: ["ADMIN"],
+      initials: "AD",
+    };
+  }
+
+  try {
+    const claims = jwtDecode<TokenClaims>(token);
+    const username = claims.sub || "admin";
+    const fullName = claims.fullName || claims.name || username;
+    const email = claims.email || "";
+    const staffId = claims.staffId || "";
+    const roles = extractRoles(token);
+
+    const nameParts = fullName
+      .replace(/^(Dr\.|Mr\.|Mrs\.|Ms\.|Prof\.)\s*/i, "")
+      .trim()
+      .split(" ");
+    const initials =
+      nameParts.length >= 2
+        ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
+        : fullName.slice(0, 2).toUpperCase();
+
+    return {
+      username,
+      fullName,
+      email,
+      staffId,
+      roles,
+      initials: initials || "AD",
+    };
+  } catch {
+    return {
+      username: "admin",
+      fullName: "Administrator",
+      email: "admin@medicore.org",
+      staffId: "",
+      roles: ["ADMIN"],
+      initials: "AD",
+    };
   }
 }
 
@@ -45,7 +139,11 @@ export function getRedirectPathForRoles(roles: string[]): string {
   return "/dashboard";
 }
 
-export function storeAuthSession(token: string, userId?: string | number) {
+export function storeAuthSession(
+  token: string,
+  userId?: string | number,
+  userProfile?: Partial<UserProfile>
+) {
   if (typeof window === "undefined") return;
 
   const roles = extractRoles(token);
@@ -58,6 +156,10 @@ export function storeAuthSession(token: string, userId?: string | number) {
   if (userId) {
     localStorage.setItem("userId", String(userId));
   }
+
+  if (userProfile) {
+    localStorage.setItem("userProfile", JSON.stringify(userProfile));
+  }
 }
 
 export function clearAuthSession() {
@@ -65,4 +167,5 @@ export function clearAuthSession() {
   document.cookie = "jwt_token=; path=/; max-age=0; SameSite=Lax";
   localStorage.removeItem("token");
   localStorage.removeItem("userId");
+  localStorage.removeItem("userProfile");
 }

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import AdminLoginPage from "@/pages/adminloginpage/AdminLoginPage";
+import AdminRegisterPage from "@/pages/adminregisterpage/AdminRegisterPage";
 
 export default function Page() {
   return (
@@ -10,7 +10,7 @@ export default function Page() {
         </div>
       }
     >
-      <AdminLoginPage />
+      <AdminRegisterPage />
     </Suspense>
   );
 }

@@ -36,36 +36,86 @@ spring:
           uri: lb://IDENTITY-SERVICE
           predicates:
             - Path=/auth/**, /login/**, /oauth2/**, /admin/staff/**, /admin/patients/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: identityCircuitBreaker
+                fallbackUri: forward:/fallback/service-unavailable
 
         - id: patient-service
           uri: lb://PATIENT-SERVICE
           predicates:
             - Path=/patients/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: patientCircuitBreaker
+                fallbackUri: forward:/fallback/service-unavailable
 
         - id: doctor-service
           uri: lb://DOCTOR-SERVICE
           predicates:
             - Path=/doctors/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: doctorCircuitBreaker
+                fallbackUri: forward:/fallback/service-unavailable
 
         - id: department-service
           uri: lb://DEPARTMENT-SERVICE
           predicates:
             - Path=/departments/**, /public/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: departmentCircuitBreaker
+                fallbackUri: forward:/fallback/service-unavailable
 
         - id: appointment-service
           uri: lb://APPOINTMENT-SERVICE
           predicates:
             - Path=/appointments/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: appointmentCircuitBreaker
+                fallbackUri: forward:/fallback/service-unavailable
 
         - id: insurance-service
           uri: lb://INSURANCE-SERVICE
           predicates:
             - Path=/insurance/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: insuranceCircuitBreaker
+                fallbackUri: forward:/fallback/service-unavailable
 
         - id: admin-analytics-service
           uri: lb://ADMIN-ANALYTICS-SERVICE
           predicates:
             - Path=/admin/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: analyticsCircuitBreaker
+                fallbackUri: forward:/fallback/service-unavailable
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        permitted-number-of-calls-in-half-open-state: 3
+        wait-duration-in-open-state: 5000ms
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 70
+        slow-call-duration-threshold: 3000ms
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 4s
 
 jwt:
   secretKey: ${JWT_SECRET_KEY:defaultSecretKeyForDevelopmentShouldBeAtLeast32BytesLong}

@@ -40,4 +40,10 @@ public class PatientCreatedListener {
             log.info("Auto-provisioned default insurance for patientId: {}", event.getPatientId());
         }
     }
+
+    @KafkaListener(topics = "patient-created.DLT", groupId = "insurance-dlt-group")
+    public void handlePatientCreatedDlt(PatientCreatedEvent event) {
+        log.error("CRITICAL DLT ALERT: Message quarantined in Dead Letter Topic for patientId: {}. Requires admin inspection.",
+                event.getPatientId());
+    }
 }

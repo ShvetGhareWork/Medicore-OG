@@ -5,7 +5,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@FeignClient(name = "doctor-service", url = "${DOCTOR_SERVICE_URL:http://localhost:8083}", fallback = DoctorServiceClientFallback.class)
+@FeignClient(name = "doctor-service", fallback = DoctorServiceClientFallback.class)
 public interface DoctorServiceClient {
 
     @GetMapping("/doctors/{id}")

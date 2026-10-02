@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  ShieldAlert,
   ShieldCheck,
   Lock,
   User,
@@ -18,7 +17,6 @@ import {
   ChevronLeft,
   Smartphone,
   CheckCircle2,
-  RefreshCw
 } from "lucide-react";
 import Link from "next/link";
 import { extractRoles, storeAuthSession } from "@/lib/auth";
@@ -91,7 +89,13 @@ export default function AdminLoginPage() {
         throw new Error("Access restricted: This account does not possess Administrative privileges.");
       }
 
-      storeAuthSession(result.jwt, result.id);
+      storeAuthSession(result.jwt, result.id, {
+        username: result.username || staffId.trim(),
+        fullName: result.fullName || staffId.trim(),
+        email: result.email || "",
+        staffId: result.staffId || (staffId.startsWith("ADM-") ? staffId : ""),
+        roles: roles,
+      });
       router.push("/dashboard");
     } catch (err: any) {
       console.error("Admin login error:", err);
@@ -131,7 +135,13 @@ export default function AdminLoginPage() {
         throw new Error("Access restricted: This account does not possess Administrative privileges.");
       }
 
-      storeAuthSession(result.jwt, result.id);
+      storeAuthSession(result.jwt, result.id, {
+        username: result.username || staffId.trim(),
+        fullName: result.fullName || staffId.trim(),
+        email: result.email || "",
+        staffId: result.staffId || (staffId.startsWith("ADM-") ? staffId : ""),
+        roles: roles,
+      });
       router.push("/dashboard");
     } catch (err: any) {
       console.error("MFA verification error:", err);
@@ -171,7 +181,13 @@ export default function AdminLoginPage() {
         throw new Error("Access restricted: Badge identity does not have Administrative authority.");
       }
 
-      storeAuthSession(result.jwt, result.id);
+      storeAuthSession(result.jwt, result.id, {
+        username: result.username || staffId.trim(),
+        fullName: result.fullName || staffId.trim(),
+        email: result.email || "",
+        staffId: result.staffId || staffId.trim(),
+        roles: roles,
+      });
       router.push("/dashboard");
     } catch (err: any) {
       console.error("Badge login error:", err);
@@ -182,83 +198,83 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between font-sans selection:bg-teal-500 selection:text-slate-950">
+    <div className="h-screen max-h-screen overflow-hidden bg-gradient-to-b from-slate-50 via-slate-50 to-slate-100 text-slate-900 flex flex-col justify-between font-sans selection:bg-teal-100 selection:text-teal-900">
       {/* Top Header */}
-      <header className="px-6 py-5 border-b border-slate-800/80 flex items-center justify-between backdrop-blur bg-slate-950/60 sticky top-0 z-20">
+      <header className="px-4 sm:px-8 py-3.5 border-b border-slate-200/80 flex items-center justify-between backdrop-blur-md bg-white/80 shrink-0 z-20 shadow-2xs">
         <div className="flex items-center gap-3">
-          <div className="size-9 rounded-xl bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-400 font-black text-base shadow-[0_0_15px_rgba(20,184,166,0.15)]">
+          <div className="w-8 h-8 rounded-xl bg-teal-600 flex items-center justify-center text-white font-black text-sm shadow-sm">
             M
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold tracking-tight text-white text-base">MediCore</span>
-              <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 font-semibold tracking-wider">
+              <span className="font-bold tracking-tight text-slate-900 text-sm sm:text-base">MediCore</span>
+              <span className="text-[10px] font-mono uppercase px-1.5 py-0.2 rounded bg-amber-50 border border-amber-200 text-amber-700 font-bold tracking-wider">
                 Restricted
               </span>
             </div>
-            <p className="text-[11px] text-slate-400">Hospital Administration & Operations Console</p>
+            <p className="text-[11px] text-slate-500 hidden sm:block">Hospital Administration & Operations Console</p>
           </div>
         </div>
 
         <Link
           href="/login"
-          className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-slate-800 hover:border-slate-700 bg-slate-900/60"
+          className="inline-flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 transition-colors px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 font-medium shadow-2xs cursor-pointer"
         >
-          <ChevronLeft className="size-3.5" /> General Login
+          <ChevronLeft className="size-3.5 text-slate-400" /> General Login
         </Link>
       </header>
 
-      {/* Main Container */}
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-10 relative overflow-hidden">
-        {/* Ambient subtle glow background */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-teal-500/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+      {/* Main Container - Non-scrollable and centered */}
+      <main className="flex-1 flex items-center justify-center p-3 sm:p-6 relative overflow-hidden">
+        {/* Subtle Ambient Background Accents */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] h-[480px] bg-teal-100/40 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/3 right-1/4 w-72 h-72 bg-sky-100/30 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="w-full max-w-md relative z-10 space-y-6">
+        <div className="w-full max-w-md relative z-10 space-y-3.5">
           {/* Security Banner Card */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 backdrop-blur-xl shadow-2xl">
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800/80">
-              <div className="flex items-center gap-2 text-teal-400 text-xs font-semibold uppercase tracking-wider">
-                <ShieldCheck className="size-4" />
+          <div className="rounded-2xl border border-slate-200 bg-white/95 p-5 sm:p-6 backdrop-blur-xl shadow-xl shadow-slate-200/60">
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2 text-teal-700 text-xs font-bold uppercase tracking-wider">
+                <ShieldCheck className="size-4 text-teal-600" />
                 {step === 1 ? "Administrative Gateway" : "Two-Step Verification"}
               </div>
-              <span className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-400">
-                <span className="size-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 {step === 1 ? "Audited Session" : "MFA Challenge"}
               </span>
             </div>
 
             {/* Error Notification */}
             {error && (
-              <div className="mb-5 p-3 rounded-xl bg-red-950/40 border border-red-800/60 text-red-300 text-xs flex items-start gap-2.5 animate-fadeIn">
-                <AlertTriangle className="size-4 text-red-400 shrink-0 mt-0.5" />
-                <div className="leading-relaxed">{error}</div>
+              <div className="mb-3.5 p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2 animate-in fade-in duration-200">
+                <AlertTriangle className="size-4 text-red-500 shrink-0 mt-0.5" />
+                <div className="leading-relaxed font-medium">{error}</div>
               </div>
             )}
 
             {step === 1 ? (
               <>
-                <div className="space-y-1.5 mb-6">
-                  <h1 className="text-2xl font-bold tracking-tight text-white">
+                <div className="space-y-1 mb-4">
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
                     Admin Authentication
                   </h1>
-                  <p className="text-xs text-slate-400 leading-relaxed">
+                  <p className="text-xs text-slate-500 leading-relaxed">
                     Enter your administrative credentials or authorized security badge token. Third-party authentication is disabled for this tier.
                   </p>
                 </div>
 
                 {/* Tab switch: Password vs Badge Token */}
-                <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950/80 rounded-xl border border-slate-800 mb-5">
+                <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200/70 mb-4">
                   <button
                     type="button"
                     onClick={() => {
                       setAuthMode("password");
                       setError("");
                     }}
-                    className={`flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all ${
+                    className={`flex items-center justify-center gap-2 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                       authMode === "password"
-                        ? "bg-slate-800 text-white shadow"
-                        : "text-slate-400 hover:text-slate-200"
+                        ? "bg-white text-slate-900 shadow-xs border border-slate-200/60"
+                        : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     <KeyRound className="size-3.5" /> Password Access
@@ -269,10 +285,10 @@ export default function AdminLoginPage() {
                       setAuthMode("badge");
                       setError("");
                     }}
-                    className={`flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all ${
+                    className={`flex items-center justify-center gap-2 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                       authMode === "badge"
-                        ? "bg-slate-800 text-white shadow"
-                        : "text-slate-400 hover:text-slate-200"
+                        ? "bg-white text-slate-900 shadow-xs border border-slate-200/60"
+                        : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     <QrCode className="size-3.5" /> Hardware Badge
@@ -281,44 +297,42 @@ export default function AdminLoginPage() {
 
                 {/* Password Auth Form */}
                 {authMode === "password" ? (
-                  <form onSubmit={handlePasswordLogin} className="space-y-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">
+                  <form onSubmit={handlePasswordLogin} className="space-y-3.5">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
                         Staff ID / Admin Username
                       </label>
                       <div className="relative">
-                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
+                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
                         <input
                           type="text"
                           required
                           value={staffId}
                           onChange={(e) => setStaffId(e.target.value)}
                           placeholder="ADM-2026-0001 or admin@hospital.org"
-                          className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950/90 border border-slate-700/80 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 font-mono transition-all"
+                          className="w-full pl-10 pr-3.5 py-2 bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 font-mono transition-all"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">
-                          Administrative Password
-                        </label>
-                      </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                        Administrative Password
+                      </label>
                       <div className="relative">
-                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
+                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
                         <input
                           type={showPassword ? "text" : "password"}
                           required
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           placeholder="••••••••••••"
-                          className="w-full pl-10 pr-10 py-2.5 bg-slate-950/90 border border-slate-700/80 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 font-mono transition-all"
+                          className="w-full pl-10 pr-10 py-2 bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 font-mono transition-all"
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                         >
                           {showPassword ? (
                             <EyeOff className="size-4" />
@@ -332,11 +346,11 @@ export default function AdminLoginPage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full mt-2 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-400 hover:to-teal-500 text-slate-950 font-bold text-sm py-3 rounded-xl transition-all shadow-lg shadow-teal-500/10 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                      className="w-full mt-1 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white font-bold text-xs sm:text-sm py-2.5 rounded-xl transition-all shadow-md shadow-teal-600/20 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                     >
                       {loading ? (
                         <span className="inline-flex items-center gap-2">
-                          <span className="size-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
+                          <span className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                           Verifying Credentials...
                         </span>
                       ) : (
@@ -348,37 +362,37 @@ export default function AdminLoginPage() {
                   </form>
                 ) : (
                   /* Badge Token Form */
-                  <form onSubmit={handleBadgeLogin} className="space-y-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">
+                  <form onSubmit={handleBadgeLogin} className="space-y-3.5">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
                         Staff Identifier (Staff ID)
                       </label>
                       <div className="relative">
-                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
+                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
                         <input
                           type="text"
                           required
                           value={staffId}
                           onChange={(e) => setStaffId(e.target.value)}
                           placeholder="ADM-2026-0001"
-                          className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950/90 border border-slate-700/80 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 font-mono transition-all"
+                          className="w-full pl-10 pr-3.5 py-2 bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 font-mono transition-all"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
                         Hardware / NFC Badge Token
                       </label>
                       <div className="relative">
-                        <QrCode className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
+                        <QrCode className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
                         <input
                           type="password"
                           required
                           value={badgeToken}
                           onChange={(e) => setBadgeToken(e.target.value)}
                           placeholder="Tap badge or input token"
-                          className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950/90 border border-slate-700/80 rounded-xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 font-mono transition-all"
+                          className="w-full pl-10 pr-3.5 py-2 bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 font-mono transition-all"
                         />
                       </div>
                       <p className="text-[11px] text-slate-500">
@@ -389,11 +403,11 @@ export default function AdminLoginPage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full mt-2 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-400 hover:to-teal-500 text-slate-950 font-bold text-sm py-3 rounded-xl transition-all shadow-lg shadow-teal-500/10 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                      className="w-full mt-1 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white font-bold text-xs sm:text-sm py-2.5 rounded-xl transition-all shadow-md shadow-teal-600/20 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                     >
                       {loading ? (
                         <span className="inline-flex items-center gap-2">
-                          <span className="size-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
+                          <span className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                           Validating Badge...
                         </span>
                       ) : (
@@ -407,19 +421,19 @@ export default function AdminLoginPage() {
               </>
             ) : (
               /* Step 2: TOTP Multi-Factor Authentication */
-              <form onSubmit={handleTotpVerify} className="space-y-5 animate-fadeIn">
-                <div className="p-4 rounded-xl bg-teal-950/30 border border-teal-500/20 flex items-start gap-3">
-                  <Smartphone className="size-5 text-teal-400 shrink-0 mt-0.5" />
-                  <div className="text-xs text-slate-300 leading-relaxed">
-                    <p className="font-semibold text-white mb-0.5">Authenticator Code Required</p>
-                    Open your Authenticator app (Google Authenticator, Microsoft Authenticator, or Authy) and enter the 6-digit code for <span className="font-mono text-teal-300">{staffId || "Administrator"}</span>.
+              <form onSubmit={handleTotpVerify} className="space-y-4 animate-in fade-in duration-200">
+                <div className="p-3 rounded-xl bg-teal-50 border border-teal-200 flex items-start gap-2.5">
+                  <Smartphone className="size-4 text-teal-600 shrink-0 mt-0.5" />
+                  <div className="text-xs text-slate-700 leading-relaxed">
+                    <p className="font-bold text-slate-900 mb-0.5">Authenticator Code Required</p>
+                    Open your Authenticator app and enter the 6-digit code for <span className="font-mono font-semibold text-teal-800">{staffId || "Administrator"}</span>.
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
                     <span>6-Digit Security Code</span>
-                    <span className="text-[10px] text-teal-400 font-mono">30s Refresh</span>
+                    <span className="text-[10px] text-teal-700 font-mono font-semibold">30s Refresh</span>
                   </label>
                   <input
                     type="text"
@@ -432,11 +446,11 @@ export default function AdminLoginPage() {
                       setTotpCode(val);
                     }}
                     placeholder="000 000"
-                    className="w-full py-3 px-4 bg-slate-950 border border-slate-700/80 rounded-xl text-2xl text-center font-mono tracking-[0.5em] text-white focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-all"
+                    className="w-full py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-xl text-center font-mono tracking-[0.4em] text-slate-900 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 transition-all"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-2">
+                <div className="grid grid-cols-2 gap-2 pt-1">
                   <button
                     type="button"
                     onClick={() => {
@@ -444,24 +458,24 @@ export default function AdminLoginPage() {
                       setTotpCode("");
                       setError("");
                     }}
-                    className="py-3 px-4 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-900 text-xs font-semibold text-slate-400 hover:text-white transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="py-2.5 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-all flex items-center justify-center gap-1 cursor-pointer"
                   >
-                    <ChevronLeft className="size-4" /> Back
+                    <ChevronLeft className="size-3.5" /> Back
                   </button>
 
                   <button
                     type="submit"
                     disabled={loading || totpCode.length < 6}
-                    className="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-400 hover:to-teal-500 text-slate-950 font-bold text-xs py-3 px-4 rounded-xl transition-all shadow-lg shadow-teal-500/10 flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                    className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all shadow-md shadow-teal-600/20 flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
                   >
                     {loading ? (
                       <span className="inline-flex items-center gap-1.5">
-                        <span className="size-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
+                        <span className="size-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                         Verifying...
                       </span>
                     ) : (
                       <>
-                        Verify Code <CheckCircle2 className="size-4" />
+                        Verify Code <CheckCircle2 className="size-3.5" />
                       </>
                     )}
                   </button>
@@ -470,8 +484,8 @@ export default function AdminLoginPage() {
             )}
 
             {/* Security notice footer */}
-            <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center gap-3 text-[11px] text-slate-400">
-              <ShieldAlert className="size-4 text-amber-400 shrink-0" />
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2 text-[11px] text-slate-500">
+              <AlertTriangle className="size-3.5 text-amber-500 shrink-0" />
               <span>
                 All transactions are logged with IP binding and 4-hour max session validity.
               </span>
@@ -479,27 +493,31 @@ export default function AdminLoginPage() {
           </div>
 
           {/* Help link */}
-          <div className="text-center text-xs text-slate-500 space-y-1">
+          <div className="text-center text-xs text-slate-500 space-y-0.5">
             <p>
-              Forgot administrative credentials or lost badge?
+              Need a new Administrator account?{" "}
+              <Link href="/admin/register" className="text-teal-700 font-semibold hover:underline">
+                Register Admin Credentials
+              </Link>
             </p>
-            <p className="text-slate-400">
-              Contact Hospital IT Security Operations (<span className="font-mono text-teal-400">it-sec@medicore.org</span>)
+            <p className="text-slate-400 text-[11px]">
+              Lost badge or locked account? Contact IT Security (<span className="font-mono text-teal-700">it-sec@medicore.org</span>)
             </p>
           </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="px-6 py-4 border-t border-slate-900 bg-slate-950/80 text-[11px] text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
+      {/* Bottom Footer Bar */}
+      <footer className="px-4 sm:px-8 py-2.5 border-t border-slate-200/80 bg-white/80 backdrop-blur-md text-[11px] text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-1.5 shrink-0 z-20">
         <div className="flex items-center gap-2">
           <Server className="size-3.5 text-slate-400" />
           <span>MediCore Self-Healing Microservices Architecture</span>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1 text-teal-400">
-            <Activity className="size-3" /> Identity Cluster 8081 Active
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1 text-teal-700 font-semibold">
+            <Activity className="size-3 text-emerald-500" /> Identity Cluster 8081 Active
           </span>
+          <span className="text-slate-400">|</span>
           <span>© 2026 MediCore Healthcare Systems</span>
         </div>
       </footer>
