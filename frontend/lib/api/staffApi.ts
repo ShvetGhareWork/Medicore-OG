@@ -120,3 +120,59 @@ export async function deactivateStaff(id: string | number) {
     }
     return data;
 }
+
+export async function resendStaffCredentials(id: string | number) {
+    const response = await fetch(`${API_BASE_URL}/admin/staff/${id}/resend-credentials`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.error || data.message || 'Failed to resend credentials');
+    }
+    return data;
+}
+
+export async function deleteStaff(id: string | number) {
+    const response = await fetch(`${API_BASE_URL}/admin/staff/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.error || data.message || 'Failed to delete staff member');
+    }
+    return data;
+}
+
+export interface UpdateStaffPayload {
+    fullName: string;
+    contactNumber?: string;
+    dateOfBirth?: string;
+    role: string;
+    department: string;
+    designation: string;
+    reportingToId?: number | null;
+    accessLevel?: string;
+    status?: string;
+    photoUrl?: string;
+}
+
+export async function updateStaff(id: string | number, payload: UpdateStaffPayload) {
+    const response = await fetch(`${API_BASE_URL}/admin/staff/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.error || data.message || 'Failed to update staff member');
+    }
+    return data;
+}
+
+
+

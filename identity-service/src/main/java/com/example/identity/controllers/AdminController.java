@@ -3,6 +3,7 @@ package com.example.identity.controllers;
 import com.example.identity.dto.CreateStaffRequest;
 import com.example.identity.dto.StaffListItemResponse;
 import com.example.identity.dto.StaffResponse;
+import com.example.identity.dto.UpdateStaffRequest;
 import com.example.identity.entity.type.RoleType;
 import com.example.identity.entity.type.StaffStatusType;
 import com.example.identity.service.StaffService;
@@ -65,12 +66,28 @@ public class AdminController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<StaffResponse> getStaffById(@PathVariable Long id) {
-        return ResponseEntity.ok(staffService.getStaffById(id));
+    public ResponseEntity<StaffResponse> getStaffById(@PathVariable String id) {
+        return ResponseEntity.ok(staffService.getStaffByIdentifier(id));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<StaffResponse> updateStaff(@PathVariable String id, @Valid @RequestBody UpdateStaffRequest request) {
+        return ResponseEntity.ok(staffService.updateStaff(id, request));
     }
 
     @PatchMapping("/{id}/deactivate")
-    public ResponseEntity<StaffResponse> deactivateStaff(@PathVariable Long id) {
+    public ResponseEntity<StaffResponse> deactivateStaff(@PathVariable String id) {
         return ResponseEntity.ok(staffService.deactivateStaff(id));
+    }
+
+    @PostMapping("/{id}/resend-credentials")
+    public ResponseEntity<StaffResponse> resendCredentials(@PathVariable String id) {
+        return ResponseEntity.ok(staffService.resendCredentials(id));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<java.util.Map<String, Object>> deleteStaff(@PathVariable String id) {
+        staffService.deleteStaff(id);
+        return ResponseEntity.ok(java.util.Map.of("message", "Staff member deleted successfully", "id", id));
     }
 }

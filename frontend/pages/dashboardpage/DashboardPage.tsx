@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Search, Bell, Plus, Users, ClipboardCheck, Clock, PieChart,
     ChevronDown, Filter, RefreshCw, MoreVertical, LayoutDashboard,
@@ -9,7 +10,9 @@ import {
     Download, Sparkles, Edit2, Trash2, Loader2, LogOut
 } from 'lucide-react';
 import { AddMedicModal, StaffMember } from '../addmedicformpage/AddMedicFormPage';
-import { getStaffList, deactivateStaff } from '../../lib/api/staffApi';
+import { EditStaffModal } from '../../components/admin/EditStaffModal';
+import { getStaffList, deactivateStaff, deleteStaff, resendStaffCredentials } from '../../lib/api/staffApi';
+import { Send, UserX } from 'lucide-react';
 
 const INITIAL_STAFF: StaffMember[] = [
     {
@@ -135,6 +138,7 @@ function mapApiItemToStaffMember(item: any): StaffMember {
         name: item.fullName || 'Unknown Staff',
         email: item.email || '',
         id: item.staffId || 'STF-0000',
+        dbId: item.id,
         role: roleDisplayMap[roleStr] || roleStr,
         roleColor: roleColorMap[roleStr] || 'bg-slate-100 text-slate-700',
         dept: item.department || 'General',
@@ -162,6 +166,7 @@ export default function StaffDashboard() {
     const [activePage, setActivePage] = useState(1);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -214,18 +219,52 @@ export default function StaffDashboard() {
 
     const handleEdit = (staff: StaffMember) => {
         setEditingStaff(staff);
-        showToast(`Editing "${staff.name}" — feature coming soon`);
+        setIsEditModalOpen(true);
     };
 
-    const handleDelete = async (staff: StaffMember) => {
-        if (!confirm(`Deactivate "${staff.name}"? This will mark them as inactive.`)) return;
+    const handleStaffUpdated = (updated: StaffMember) => {
+        setStaffList(prev => prev.map(s => s.id === updated.id ? updated : s));
+        showToast(`Staff member "${updated.name}" updated successfully!`);
+        fetchStaffData();
+    };
+
+    const handleDeactivate = async (staff: StaffMember) => {
+        if (!confirm(`Deactivate "${staff.name}"? This will disable their active credentials.`)) return;
         try {
-            await deactivateStaff(staff.id);
-            setStaffList(prev => prev.filter(s => s.id !== staff.id));
-            setTotalElements(prev => Math.max(0, prev - 1));
-            showToast(`"${staff.name}" has been deactivated.`);
+            const targetId = staff.dbId || staff.id;
+            await deactivateStaff(targetId);
+            setStaffList(prev => prev.map(s => s.id === staff.id ? { ...s, status: 'Inactive', statusColor: 'text-slate-600 bg-slate-100', statusDot: 'bg-slate-400' } : s));
+            showToast(`"${staff.name}" has been marked Inactive.`);
         } catch (err: any) {
             showToast(`Failed to deactivate: ${err.message}`);
+        }
+    };
+
+    const handleDeletePermanent = async (staff: StaffMember) => {
+        if (!confirm(`Permanently delete "${staff.name}" (${staff.id})? This will remove their record and credentials completely.`)) return;
+        try {
+            const targetId = staff.dbId || staff.id;
+            await deleteStaff(targetId);
+            setStaffList(prev => prev.filter(s => s.id !== staff.id));
+            setTotalElements(prev => Math.max(0, prev - 1));
+            showToast(`Staff member "${staff.name}" has been permanently deleted.`);
+        } catch (err: any) {
+            showToast(`Failed to delete: ${err.message}`);
+        }
+    };
+
+    const [resendingStaffId, setResendingStaffId] = useState<string | null>(null);
+
+    const handleResendCredentials = async (staff: StaffMember) => {
+        setResendingStaffId(staff.id);
+        try {
+            const targetId = staff.dbId || staff.id;
+            await resendStaffCredentials(targetId);
+            showToast(`✅ Fresh QR credentials & login badge sent to ${staff.email}`);
+        } catch (err: any) {
+            showToast(`❌ Failed to resend credentials: ${err.message}`);
+        } finally {
+            setResendingStaffId(null);
         }
     };
 
@@ -454,52 +493,58 @@ export default function StaffDashboard() {
                     </div>
                 </div>
 
-                {/* Data Table */}
-                <div className="bg-white border border-slate-200 rounded-b-xl shadow-2xs overflow-x-auto relative">
-                    {isLoading && (
-                        <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[1px] flex items-center justify-center">
-                            <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-200 shadow-sm">
-                                <Loader2 size={14} className="animate-spin text-teal-600" />
-                                <span className="text-xs font-medium text-slate-600">Loading staff…</span>
+                {/* Data Table Container */}
+                <div className="bg-white border border-slate-200 rounded-b-xl shadow-2xs min-h-[380px] flex flex-col justify-between relative">
+                    <div className="overflow-x-auto w-full">
+                        {isLoading && (
+                            <div className="absolute inset-0 z-10 bg-white/70 backdrop-blur-[1px] flex items-center justify-center">
+                                <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white rounded-xl border border-slate-200 shadow-md">
+                                    <Loader2 size={15} className="animate-spin text-teal-600" />
+                                    <span className="text-xs font-semibold text-slate-700">Loading staff data…</span>
+                                </div>
                             </div>
-                        </div>
-                    )}
-                    <table className="w-full text-left border-collapse min-w-[820px]">
-                        <thead className="sticky top-0 z-[5]">
-                        <tr className="bg-slate-50/95 backdrop-blur-sm border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                            <th className="p-4 py-3">Staff Member</th>
-                            <th className="p-4 py-3">Staff ID</th>
-                            <th className="p-4 py-3">Role</th>
-                            <th className="p-4 py-3">Department</th>
-                            <th className="p-4 py-3">Status</th>
-                            <th className="p-4 py-3">Date Added</th>
-                            <th className="p-4 py-3 text-right">Actions</th>
-                        </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 text-xs">
-                        {filteredStaff.length > 0 ? (
-                            filteredStaff.map((staff, idx) => (
-                                <TableRow
-                                    key={staff.id + '-' + idx}
-                                    {...staff}
-                                    isNew={staff.date === 'Just Now'}
-                                    onEdit={() => handleEdit(staff)}
-                                    onDelete={() => handleDelete(staff)}
-                                />
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan={7} className="p-10 text-center text-slate-400 text-xs">
-                                    <Search size={22} className="mx-auto mb-2 text-slate-300" />
-                                    No staff members match the selected filters.
-                                </td>
-                            </tr>
                         )}
-                        </tbody>
-                    </table>
+                        <table className="w-full text-left border-collapse min-w-[820px]">
+                            <thead>
+                            <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                <th className="p-4 py-3">Staff Member</th>
+                                <th className="p-4 py-3">Staff ID</th>
+                                <th className="p-4 py-3">Role</th>
+                                <th className="p-4 py-3">Department</th>
+                                <th className="p-4 py-3">Status</th>
+                                <th className="p-4 py-3">Date Added</th>
+                                <th className="p-4 py-3 text-right">Actions</th>
+                            </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 text-xs">
+                            {filteredStaff.length > 0 ? (
+                                filteredStaff.map((staff, idx) => (
+                                    <TableRow
+                                        key={staff.id + '-' + idx}
+                                        {...staff}
+                                        isNew={staff.date === 'Just Now'}
+                                        isResending={resendingStaffId === staff.id}
+                                        onEdit={() => handleEdit(staff)}
+                                        onDeactivate={() => handleDeactivate(staff)}
+                                        onDelete={() => handleDeletePermanent(staff)}
+                                        onResend={() => handleResendCredentials(staff)}
+                                    />
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={7} className="p-12 text-center text-slate-400 text-xs">
+                                        <Search size={24} className="mx-auto mb-2 text-slate-300" />
+                                        <p className="font-medium text-slate-600">No staff members found</p>
+                                        <p className="text-[11px] text-slate-400 mt-0.5">Try adjusting your search query or filters.</p>
+                                    </td>
+                                </tr>
+                            )}
+                            </tbody>
+                        </table>
+                    </div>
 
                     {/* Pagination Footer */}
-                    <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+                    <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 mt-auto bg-slate-50/40 rounded-b-xl">
                         <div>Showing 1-{filteredStaff.length} of {totalElements} staff members</div>
                         <div className="flex items-center gap-1">
                             <button
@@ -543,6 +588,14 @@ export default function StaffDashboard() {
                 onClose={() => setIsAddModalOpen(false)}
                 onStaffAdded={handleStaffAdded}
             />
+
+            {/* EDIT STAFF MEMBER MODAL */}
+            <EditStaffModal
+                isOpen={isEditModalOpen}
+                staff={editingStaff}
+                onClose={() => setIsEditModalOpen(false)}
+                onStaffUpdated={handleStaffUpdated}
+            />
         </div>
     );
 }
@@ -571,42 +624,80 @@ function StatCard({ title, value, trend, icon, trendStatus = 'good' }: any) {
 }
 
 function TableRow({
-                      name, email, id, role, roleColor, dept, subDept, status, date, initials, avatarUrl, isNew = false, onEdit, onDelete
+                      name, email, id, role, roleColor, dept, subDept, status, date, initials, avatarUrl, isNew = false, isResending = false, onEdit, onDeactivate, onDelete, onResend
                   }: any) {
     const isInactive = status === 'Inactive';
     const [menuOpen, setMenuOpen] = useState(false);
+    const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
+
+    const toggleMenu = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (menuOpen) {
+            setMenuOpen(false);
+            return;
+        }
+
+        if (buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            const menuHeight = 185;
+            const menuWidth = 210;
+            const spaceBelow = window.innerHeight - rect.bottom;
+
+            let top = rect.bottom + 6;
+            if (spaceBelow < menuHeight && rect.top > menuHeight) {
+                top = rect.top - menuHeight - 6;
+            }
+
+            const left = Math.max(12, rect.right - menuWidth);
+            setMenuCoords({ top, left });
+            setMenuOpen(true);
+        }
+    };
 
     useEffect(() => {
         if (!menuOpen) return;
-        const handler = (e: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        const handleOutsideClick = (e: MouseEvent) => {
+            if (
+                menuRef.current && !menuRef.current.contains(e.target as Node) &&
+                buttonRef.current && !buttonRef.current.contains(e.target as Node)
+            ) {
                 setMenuOpen(false);
             }
         };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
+        const handleScrollOrResize = () => setMenuOpen(false);
+
+        document.addEventListener('mousedown', handleOutsideClick);
+        window.addEventListener('scroll', handleScrollOrResize, true);
+        window.addEventListener('resize', handleScrollOrResize);
+
+        return () => {
+            document.removeEventListener('mousedown', handleOutsideClick);
+            window.removeEventListener('scroll', handleScrollOrResize, true);
+            window.removeEventListener('resize', handleScrollOrResize);
+        };
     }, [menuOpen]);
 
     return (
-        <tr className={`hover:bg-slate-50/80 transition-colors group ${isNew ? 'bg-teal-50/40' : ''}`}>
+        <tr className={`hover:bg-slate-50/90 transition-all duration-150 group ${isNew ? 'bg-teal-50/40' : ''}`}>
             <td className="p-4">
                 <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-slate-200 border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-700 overflow-hidden shrink-0">
+                    <div className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200/80 flex items-center justify-center text-xs font-bold text-slate-700 overflow-hidden shrink-0 shadow-2xs">
                         {avatarUrl ? <img src={avatarUrl} alt={name} className="w-full h-full object-cover" /> : initials}
                     </div>
                     <div>
                         <div className="flex items-center gap-1.5">
-                            <p className="font-semibold text-slate-900">{name}</p>
-                            {isNew && <span className="text-[9px] bg-teal-100 text-teal-800 font-bold px-1.5 py-0.5 rounded">NEW</span>}
+                            <p className="font-semibold text-slate-900 tracking-tight">{name}</p>
+                            {isNew && <span className="text-[9px] bg-teal-100 text-teal-800 font-bold px-1.5 py-0.5 rounded-full">NEW</span>}
                         </div>
-                        <p className="text-[11px] text-slate-400">{email}</p>
+                        <p className="text-[11px] text-slate-400 font-normal">{email}</p>
                     </div>
                 </div>
             </td>
             <td className="p-4 font-mono text-[11px] text-slate-600 font-medium">{id}</td>
             <td className="p-4">
-                <span className={`inline-flex px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${roleColor}`}>{role}</span>
+                <span className={`inline-flex px-2.5 py-0.5 rounded-md text-[11px] font-semibold border ${roleColor}`}>{role}</span>
             </td>
             <td className="p-4">
                 <p className="font-semibold text-slate-900">{dept}</p>
@@ -620,40 +711,85 @@ function TableRow({
             </td>
             <td className="p-4 text-slate-500 text-xs">{date}</td>
             <td className="p-4 text-right">
-                <div className="relative inline-block" ref={menuRef}>
+                <div className="flex items-center justify-end gap-1">
+                    {/* Quick Action: Resend QR */}
                     <button
-                        onClick={() => setMenuOpen(o => !o)}
+                        onClick={onResend}
+                        disabled={isResending}
+                        title="Resend QR Credentials"
+                        aria-label={`Resend credentials for ${name}`}
+                        className="hidden sm:inline-flex p-1.5 rounded-lg text-slate-400 hover:text-teal-700 hover:bg-teal-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                        {isResending ? <Loader2 size={15} className="animate-spin text-teal-600" /> : <Send size={15} />}
+                    </button>
+
+                    {/* Quick Action: Edit */}
+                    <button
+                        onClick={onEdit}
+                        title="Edit Details"
+                        aria-label={`Edit ${name}`}
+                        className="hidden sm:inline-flex p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                    >
+                        <Edit2 size={15} />
+                    </button>
+
+                    {/* 3-Dots Menu Trigger */}
+                    <button
+                        ref={buttonRef}
+                        onClick={toggleMenu}
                         aria-label={`More actions for ${name}`}
                         aria-haspopup="menu"
                         aria-expanded={menuOpen}
-                        className="text-slate-400 hover:text-slate-700 p-1.5 rounded-md hover:bg-slate-100 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all cursor-pointer"
+                        className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                            menuOpen ? 'bg-slate-200 text-slate-900 shadow-2xs' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                        }`}
                     >
                         <MoreVertical size={16} />
                     </button>
-
-                    {menuOpen && (
-                        <div
-                            role="menu"
-                            className="absolute right-0 top-full mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
-                        >
-                            <button
-                                role="menuitem"
-                                onClick={() => { setMenuOpen(false); onEdit?.(); }}
-                                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
-                            >
-                                <Edit2 size={13} /> Edit Details
-                            </button>
-                            <div className="mx-3 border-t border-slate-100" />
-                            <button
-                                role="menuitem"
-                                onClick={() => { setMenuOpen(false); onDelete?.(); }}
-                                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                            >
-                                <Trash2 size={13} /> Deactivate
-                            </button>
-                        </div>
-                    )}
                 </div>
+
+                {/* Portal-rendered Dropdown Menu */}
+                {menuOpen && menuCoords && typeof document !== 'undefined' && createPortal(
+                    <div
+                        ref={menuRef}
+                        style={{ top: `${menuCoords.top}px`, left: `${menuCoords.left}px` }}
+                        role="menu"
+                        className="fixed w-52 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl shadow-2xl z-[9999] overflow-hidden animate-in fade-in zoom-in-95 duration-150 py-1.5 ring-1 ring-slate-900/5 text-left"
+                    >
+                        <button
+                            role="menuitem"
+                            disabled={isResending}
+                            onClick={() => { setMenuOpen(false); onResend?.(); }}
+                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-teal-700 hover:bg-teal-50 disabled:opacity-50 transition-colors cursor-pointer"
+                        >
+                            {isResending ? <Loader2 size={14} className="animate-spin text-teal-600" /> : <Send size={14} />}
+                            <span>{isResending ? "Sending Credentials..." : "Resend QR Credentials"}</span>
+                        </button>
+                        <button
+                            role="menuitem"
+                            onClick={() => { setMenuOpen(false); onEdit?.(); }}
+                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                        >
+                            <Edit2 size={14} /> Edit Details
+                        </button>
+                        <div className="my-1 border-t border-slate-100" />
+                        <button
+                            role="menuitem"
+                            onClick={() => { setMenuOpen(false); onDeactivate?.(); }}
+                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50 transition-colors cursor-pointer"
+                        >
+                            <UserX size={14} /> Deactivate
+                        </button>
+                        <button
+                            role="menuitem"
+                            onClick={() => { setMenuOpen(false); onDelete?.(); }}
+                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        >
+                            <Trash2 size={14} /> Delete Record
+                        </button>
+                    </div>,
+                    document.body
+                )}
             </td>
         </tr>
     );

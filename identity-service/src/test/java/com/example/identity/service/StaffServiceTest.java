@@ -42,11 +42,17 @@ class StaffServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private com.example.identity.repository.OutboxEventRepository outboxEventRepository;
+
+    @Mock
+    private StaffCredentialEmailService emailService;
+
     private StaffService staffService;
 
     @BeforeEach
     void setUp() {
-        staffService = new StaffService(staffRepository, departmentRepository, userRepository, passwordEncoder);
+        staffService = new StaffService(staffRepository, departmentRepository, userRepository, passwordEncoder, outboxEventRepository, emailService);
     }
 
     @Test

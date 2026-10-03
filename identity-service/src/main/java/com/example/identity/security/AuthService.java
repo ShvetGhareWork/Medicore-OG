@@ -17,6 +17,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
 import com.example.identity.service.AdminAuditLogService;
+import com.example.identity.service.ClinicalLoginEventPublisher;
 import org.springframework.security.authentication.LockedException;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -33,16 +34,19 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthUtil authUtil;
     private final AdminAuditLogService auditLogService;
+    private final ClinicalLoginEventPublisher loginEventPublisher;
     private final String adminRegistrationSecret;
 
     public AuthService(AuthenticationManager authenticationManager, UserRepository userRepository,
                        PasswordEncoder passwordEncoder, AuthUtil authUtil, AdminAuditLogService auditLogService,
+                       ClinicalLoginEventPublisher loginEventPublisher,
                        @Value("${app.security.admin-registration-secret:MediCore@AdminSecret2026}") String adminRegistrationSecret) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authUtil = authUtil;
         this.auditLogService = auditLogService;
+        this.loginEventPublisher = loginEventPublisher;
         this.adminRegistrationSecret = adminRegistrationSecret;
     }
 
@@ -132,17 +136,20 @@ public class AuthService {
                 badgeLoginRequest.getBadgeToken() != null ? badgeLoginRequest.getBadgeToken().trim() : ""
         ).orElseGet(() -> {
             auditLogService.logEvent("BADGE_LOGIN_FAILED", staffId, null, "UNKNOWN", "FAILED", "Invalid Staff ID or Badge Token");
+            loginEventPublisher.publishFailure(staffId, "INVALID_CREDENTIALS", "CLINICAL_TERMINAL");
             throw new BadCredentialsException("Invalid Staff ID or Badge Token");
         });
 
         if (user.getStatus() != StaffStatusType.ACTIVE) {
             auditLogService.logEvent("BADGE_LOGIN_BLOCKED", staffId, user.getId(),
                     user.getRoles().toString(), "BLOCKED", "Staff account is not in ACTIVE status: " + user.getStatus());
+            loginEventPublisher.publishFailure(staffId, "ACCOUNT_INACTIVE", "CLINICAL_TERMINAL");
             throw new BadCredentialsException("Staff account is inactive or pending");
         }
 
         auditLogService.logEvent("BADGE_LOGIN_SUCCESS", staffId, user.getId(),
                 user.getRoles().toString(), "SUCCESS", "Hardware badge verified successfully");
+        loginEventPublisher.publishSuccess(staffId, user.getRoles().toString(), "CLINICAL_TERMINAL");
 
         String token = authUtil.generateAccessToken(user);
         return new LoginResponseDto(

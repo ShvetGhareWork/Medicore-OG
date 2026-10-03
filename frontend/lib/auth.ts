@@ -144,7 +144,7 @@ export function storeAuthSession(
   userId?: string | number,
   userProfile?: Partial<UserProfile>
 ) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || !token || token === "undefined" || token === "null") return;
 
   const roles = extractRoles(token);
   const isAdmin = roles.some((r) => r === "ADMIN" || r === "ADMINISTRATIVE");

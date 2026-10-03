@@ -14,6 +14,7 @@ export interface StaffMember {
     name: string;
     email: string;
     id: string;
+    dbId?: number | string;
     role: string;
     roleColor: string;
     dept: string;
