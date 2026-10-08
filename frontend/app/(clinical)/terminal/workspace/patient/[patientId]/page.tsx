@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 
-export default function WorkspaceRedirect() {
+export default function PatientRootRedirect({
+  params,
+}: {
+  params: Promise<{ patientId: string }>;
+}) {
   const router = useRouter();
+  const { patientId } = use(params);
 
   useEffect(() => {
-    router.replace("/terminal/workspace/patient-search");
-  }, [router]);
+    router.replace(`/terminal/workspace/patient/${patientId}/overview`);
+  }, [router, patientId]);
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center">

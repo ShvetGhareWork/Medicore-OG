@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { getUserProfile, clearAuthSession, UserProfile } from "@/lib/auth";
 import { 
   Stethoscope, 
@@ -14,7 +15,10 @@ import {
   Clock, 
   ShieldAlert,
   Bell,
-  Search
+  ArrowRight,
+  ChevronRight,
+  HeartPulse,
+  FileText
 } from "lucide-react";
 
 export default function ClinicalDashboardPage() {
@@ -42,40 +46,40 @@ export default function ClinicalDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-white">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
       {/* Top Navigation Bar */}
-      <header className="bg-slate-900/80 border-b border-slate-800 backdrop-blur-md sticky top-0 z-30 px-6 py-3.5 flex items-center justify-between">
+      <header className="bg-white border-b border-slate-200/80 sticky top-0 z-30 px-6 py-3.5 flex items-center justify-between shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-teal-500 flex items-center justify-center shadow-md shadow-cyan-500/20 border border-cyan-400/20">
-            <Stethoscope className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-xl bg-[#004d40] flex items-center justify-center shadow-xs">
+            <Stethoscope className="w-5 h-5 text-[#80eec0]" />
           </div>
           <div>
-            <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            <h1 className="text-lg font-bold tracking-tight text-slate-900 flex items-center gap-2">
               MediCore Clinical Station
             </h1>
-            <p className="text-[11px] text-slate-400 font-medium">Bedside Point-of-Care Terminal</p>
+            <p className="text-[11px] text-slate-500 font-medium">Bedside Point-of-Care Terminal</p>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-2 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg text-xs font-mono text-cyan-400">
-            <Clock className="w-3.5 h-3.5 text-cyan-400" />
+          <div className="hidden md:flex items-center gap-2 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-mono text-slate-700">
+            <Clock className="w-3.5 h-3.5 text-[#004d40]" />
             <span>{currentTime || "00:00:00"}</span>
           </div>
 
-          <div className="flex items-center gap-3 pl-3 border-l border-slate-800">
+          <div className="flex items-center gap-3 pl-3 border-l border-slate-200">
             <div className="text-right">
-              <div className="text-xs font-semibold text-slate-200">{profile?.fullName || "Doctor / Nurse"}</div>
-              <div className="text-[10px] text-cyan-400 font-mono font-medium tracking-wide">
+              <div className="text-xs font-bold text-slate-900">{profile?.fullName || "Doctor / Nurse"}</div>
+              <div className="text-[10px] text-slate-500 font-mono font-medium tracking-wide">
                 {profile?.staffId ? `ID: ${profile.staffId}` : (profile?.roles?.[0] || "CLINICAL")}
               </div>
             </div>
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-teal-600 text-white font-bold text-xs flex items-center justify-center shadow-sm">
+            <div className="w-9 h-9 rounded-xl bg-[#004d40] text-[#80eec0] font-bold text-xs flex items-center justify-center shadow-xs">
               {profile?.initials || "DR"}
             </div>
             <button
               onClick={handleLogout}
-              className="ml-2 p-2 rounded-lg bg-slate-800/80 hover:bg-rose-500/20 hover:text-rose-400 text-slate-400 border border-slate-700/60 hover:border-rose-500/30 transition-all duration-200"
+              className="ml-2 p-2 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-500 border border-slate-200 hover:border-rose-200 transition-all duration-200"
               title="Sign Out of Terminal"
             >
               <LogOut className="w-4 h-4" />
@@ -87,146 +91,202 @@ export default function ClinicalDashboardPage() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8 space-y-8">
         
-        {/* Page Hero Title */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/60 border border-slate-800 p-6 rounded-2xl backdrop-blur-sm">
+        {/* Page Hero Title & Launch Workspace CTA */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-r from-[#0a1e24] to-[#004d40] border border-teal-800 p-7 rounded-2xl text-white shadow-lg">
           <div>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 mb-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#80eec0]/20 text-[#80eec0] border border-[#80eec0]/30 mb-2">
               <Activity className="w-3.5 h-3.5" /> Authenticated Session
             </span>
             <h2 className="text-3xl font-extrabold tracking-tight text-white">
-              Dashboard
+              Clinical Terminal
             </h2>
-            <p className="text-sm text-slate-400 mt-1">
-              Welcome back, <strong className="text-slate-200">{profile?.fullName || "Clinical Officer"}</strong>. Terminal is synchronized with hospital core.
+            <p className="text-sm text-slate-200 mt-1 max-w-xl">
+              Welcome back, <strong className="text-white">{profile?.fullName || "Clinical Officer"}</strong>. Launch the full patient roster, electronic chart overview, SOAP notes, orders, and nurse escalation terminal.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="bg-slate-950/80 border border-slate-800 px-4 py-3 rounded-xl flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-emerald-500 animate-ping" />
-              <div>
-                <div className="text-[11px] text-slate-400 font-medium">Station Connection</div>
-                <div className="text-xs font-bold text-emerald-400">Active • Online</div>
-              </div>
-            </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <Link
+              href="/terminal/workspace/patient-search"
+              className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold text-[#082823] bg-[#80eec0] hover:bg-[#68e2b0] shadow-md transition-all duration-200 group"
+            >
+              <Users className="w-4 h-4" />
+              <span>Launch Patient Workspace</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
           </div>
         </div>
 
         {/* Quick Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-slate-900/80 border border-slate-800 p-5 rounded-xl flex items-center gap-4 hover:border-slate-700 transition-all">
-            <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+          <Link
+            href="/terminal/workspace/patient-search"
+            className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-4 hover:border-teal-600 shadow-xs hover:shadow-md transition-all group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center text-[#004d40] group-hover:scale-105 transition-transform">
               <Users className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-white">12</div>
-              <div className="text-xs text-slate-400">Assigned Inpatients</div>
+              <div className="text-2xl font-extrabold text-slate-900">12</div>
+              <div className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+                <span>Assigned Inpatients</span>
+                <ChevronRight className="w-3 h-3 text-[#004d40] opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
             </div>
-          </div>
+          </Link>
 
-          <div className="bg-slate-900/80 border border-slate-800 p-5 rounded-xl flex items-center gap-4 hover:border-slate-700 transition-all">
-            <div className="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
-              <FileHeart className="w-6 h-6" />
+          <Link
+            href="/terminal/workspace/patient/9fdc6aa6-4508-44c1-8a83-397d876972f9/flags"
+            className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-4 hover:border-amber-500 shadow-xs hover:shadow-md transition-all group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 group-hover:scale-105 transition-transform">
+              <ShieldAlert className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-white">3</div>
-              <div className="text-xs text-slate-400">Critical Vitals Alerts</div>
+              <div className="text-2xl font-extrabold text-slate-900">3</div>
+              <div className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+                <span>Critical Vitals Alerts</span>
+                <ChevronRight className="w-3 h-3 text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
             </div>
-          </div>
+          </Link>
 
-          <div className="bg-slate-900/80 border border-slate-800 p-5 rounded-xl flex items-center gap-4 hover:border-slate-700 transition-all">
-            <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+          <Link
+            href="/terminal/workspace/patient/9fdc6aa6-4508-44c1-8a83-397d876972f9/orders"
+            className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-4 hover:border-purple-500 shadow-xs hover:shadow-md transition-all group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 group-hover:scale-105 transition-transform">
               <FlaskConical className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-white">5</div>
-              <div className="text-xs text-slate-400">Pending Lab Results</div>
+              <div className="text-2xl font-extrabold text-slate-900">5</div>
+              <div className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+                <span>Pending Lab Results</span>
+                <ChevronRight className="w-3 h-3 text-purple-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
             </div>
-          </div>
+          </Link>
 
-          <div className="bg-slate-900/80 border border-slate-800 p-5 rounded-xl flex items-center gap-4 hover:border-slate-700 transition-all">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+          <Link
+            href="/terminal/workspace/patient/9fdc6aa6-4508-44c1-8a83-397d876972f9/notes"
+            className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-4 hover:border-teal-500 shadow-xs hover:shadow-md transition-all group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-700 group-hover:scale-105 transition-transform">
               <ClipboardList className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-white">8</div>
-              <div className="text-xs text-slate-400">Rounds Checklist</div>
+              <div className="text-2xl font-extrabold text-slate-900">8</div>
+              <div className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+                <span>Rounds Checklist</span>
+                <ChevronRight className="w-3 h-3 text-teal-700 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
             </div>
-          </div>
+          </Link>
         </div>
 
         {/* Clinical Actions & Quick Modules */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Main Clinical Actions */}
-          <div className="lg:col-span-2 bg-slate-900/70 border border-slate-800 rounded-2xl p-6 space-y-4">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <ClipboardList className="w-5 h-5 text-cyan-400" /> Clinical Station Quick Actions
+          <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-xs">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <ClipboardList className="w-5 h-5 text-[#004d40]" /> Clinical Station Quick Actions
             </h3>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-              <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800/80 hover:border-cyan-500/50 transition-all cursor-pointer group">
-                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                  <FileHeart className="w-4 h-4" />
+              <Link
+                href="/terminal/workspace/patient/9fdc6aa6-4508-44c1-8a83-397d876972f9/vitals"
+                className="p-4 rounded-xl bg-slate-50/70 border border-slate-200 hover:border-teal-600 hover:bg-white transition-all cursor-pointer group block shadow-xs"
+              >
+                <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <HeartPulse className="w-4 h-4" />
                 </div>
-                <div className="font-semibold text-sm text-slate-200 group-hover:text-cyan-400 transition-colors">Record Patient Vitals</div>
-                <div className="text-xs text-slate-400 mt-1">Direct bedside entry for BP, SPO2, Pulse, and Temp.</div>
-              </div>
-
-              <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800/80 hover:border-cyan-500/50 transition-all cursor-pointer group">
-                <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                  <ClipboardList className="w-4 h-4" />
+                <div className="font-bold text-sm text-slate-900 group-hover:text-[#004d40] transition-colors flex items-center justify-between">
+                  <span>Record Patient Vitals</span>
+                  <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                 </div>
-                <div className="font-semibold text-sm text-slate-200 group-hover:text-teal-400 transition-colors">Doctor Round Notes</div>
-                <div className="text-xs text-slate-400 mt-1">Add progress notes and clinical observations.</div>
-              </div>
+                <div className="text-xs text-slate-500 mt-1">Direct bedside entry for BP, SPO2, Pulse, and Temp.</div>
+              </Link>
 
-              <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800/80 hover:border-cyan-500/50 transition-all cursor-pointer group">
-                <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+              <Link
+                href="/terminal/workspace/patient/9fdc6aa6-4508-44c1-8a83-397d876972f9/notes"
+                className="p-4 rounded-xl bg-slate-50/70 border border-slate-200 hover:border-teal-600 hover:bg-white transition-all cursor-pointer group block shadow-xs"
+              >
+                <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-700 border border-teal-200 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div className="font-bold text-sm text-slate-900 group-hover:text-[#004d40] transition-colors flex items-center justify-between">
+                  <span>Doctor Round Notes</span>
+                  <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <div className="text-xs text-slate-500 mt-1">Add progress notes and clinical observations.</div>
+              </Link>
+
+              <Link
+                href="/terminal/workspace/patient/9fdc6aa6-4508-44c1-8a83-397d876972f9/orders"
+                className="p-4 rounded-xl bg-slate-50/70 border border-slate-200 hover:border-purple-600 hover:bg-white transition-all cursor-pointer group block shadow-xs"
+              >
+                <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
                   <FlaskConical className="w-4 h-4" />
                 </div>
-                <div className="font-semibold text-sm text-slate-200 group-hover:text-purple-400 transition-colors">Order Lab & Pathology</div>
-                <div className="text-xs text-slate-400 mt-1">Submit blood work and imaging requisitions.</div>
-              </div>
+                <div className="font-bold text-sm text-slate-900 group-hover:text-purple-700 transition-colors flex items-center justify-between">
+                  <span>Order Lab & Pathology</span>
+                  <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <div className="text-xs text-slate-500 mt-1">Submit blood work and imaging requisitions.</div>
+              </Link>
 
-              <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800/80 hover:border-cyan-500/50 transition-all cursor-pointer group">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+              <Link
+                href="/terminal/workspace/patient/9fdc6aa6-4508-44c1-8a83-397d876972f9/flags"
+                className="p-4 rounded-xl bg-slate-50/70 border border-slate-200 hover:border-amber-600 hover:bg-white transition-all cursor-pointer group block shadow-xs"
+              >
+                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
                   <ShieldAlert className="w-4 h-4" />
                 </div>
-                <div className="font-semibold text-sm text-slate-200 group-hover:text-amber-400 transition-colors">Emergency Nursing Call</div>
-                <div className="text-xs text-slate-400 mt-1">Trigger department alert for code or assistance.</div>
-              </div>
+                <div className="font-bold text-sm text-slate-900 group-hover:text-amber-700 transition-colors flex items-center justify-between">
+                  <span>Emergency Nursing Call</span>
+                  <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <div className="text-xs text-slate-500 mt-1">Trigger department alert for code or assistance.</div>
+              </Link>
             </div>
           </div>
 
           {/* Side Info & Active Credentials */}
-          <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 space-y-4">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Bell className="w-5 h-5 text-teal-400" /> Active Session Info
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-xs">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Bell className="w-5 h-5 text-[#004d40]" /> Active Session Info
             </h3>
 
             <div className="space-y-3 pt-2">
-              <div className="bg-slate-950/80 border border-slate-800/80 p-3.5 rounded-xl">
-                <div className="text-[11px] text-slate-500 font-semibold uppercase">Staff Identifier</div>
-                <div className="text-sm font-mono font-bold text-slate-200 mt-0.5">{profile?.staffId || "DOC-2026-XXXX"}</div>
+              <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+                <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Staff Identifier</div>
+                <div className="text-sm font-mono font-bold text-slate-900 mt-0.5">{profile?.staffId || "DOC-2026-0001"}</div>
               </div>
 
-              <div className="bg-slate-950/80 border border-slate-800/80 p-3.5 rounded-xl">
-                <div className="text-[11px] text-slate-500 font-semibold uppercase">Assigned Roles</div>
-                <div className="text-xs font-semibold text-cyan-400 mt-0.5">{profile?.roles?.join(", ") || "DOCTOR"}</div>
+              <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+                <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Assigned Roles</div>
+                <div className="text-xs font-bold text-[#004d40] mt-0.5">{profile?.roles?.join(", ") || "DOCTOR"}</div>
               </div>
 
-              <div className="bg-slate-950/80 border border-slate-800/80 p-3.5 rounded-xl">
-                <div className="text-[11px] text-slate-500 font-semibold uppercase">Security Mode</div>
-                <div className="text-xs text-emerald-400 font-medium mt-0.5 flex items-center gap-1.5">
-                  <Activity className="w-3.5 h-3.5" /> Hardware QR Token Authenticated
+              <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+                <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Security Mode</div>
+                <div className="text-xs text-emerald-700 font-bold mt-0.5 flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-emerald-600" /> Hardware QR Token Authenticated
                 </div>
               </div>
             </div>
 
+            <Link
+              href="/terminal/workspace/patient-search"
+              className="w-full mt-4 bg-[#004d40] hover:bg-[#00382e] text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 shadow-xs"
+            >
+              <Users className="w-4 h-4" /> Open Inpatient Roster
+            </Link>
+
             <button
               onClick={handleLogout}
-              className="w-full mt-4 bg-slate-800 hover:bg-rose-600/90 text-slate-200 hover:text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 border border-slate-700 hover:border-rose-500/40"
+              className="w-full bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-bold py-2.5 px-4 rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 border border-slate-200 hover:border-rose-200"
             >
               <LogOut className="w-4 h-4" /> End Terminal Session
             </button>

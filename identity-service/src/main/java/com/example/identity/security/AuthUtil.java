@@ -33,6 +33,7 @@ public class AuthUtil {
         long validityDurationMs = isAdmin ? (1000L * 60 * 60 * 4) : (1000L * 60 * 60 * 24); // 4h for admin, 24h for normal
 
         return Jwts.builder()
+                .id(java.util.UUID.randomUUID().toString())
                 .subject(user.getUsername())
                 .claim("userId", user.getId().toString())
                 .claim("roles", user.getRoles().stream().map(Enum::name).toList())

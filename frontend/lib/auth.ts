@@ -169,3 +169,18 @@ export function clearAuthSession() {
   localStorage.removeItem("userId");
   localStorage.removeItem("userProfile");
 }
+
+export function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("token");
+}
+
+export function getUser(): UserProfile | null {
+  if (typeof window === "undefined") return null;
+  return getUserProfile();
+}
+
+export function logout() {
+  clearAuthSession();
+}
+

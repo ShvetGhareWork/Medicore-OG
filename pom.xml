@@ -39,6 +39,7 @@
 		<module>appointment-service</module>
 		<module>insurance-service</module>
 		<module>admin-analytics-service</module>
+		<module>clinical-service</module>
 		<module>api-gateway</module>
 	</modules>
 

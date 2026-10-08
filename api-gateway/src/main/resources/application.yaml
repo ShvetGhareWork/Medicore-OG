@@ -92,6 +92,16 @@ spring:
                 name: insuranceCircuitBreaker
                 fallbackUri: forward:/fallback/service-unavailable
 
+        - id: clinical-service
+          uri: lb://CLINICAL-SERVICE
+          predicates:
+            - Path=/clinical/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: clinicalCircuitBreaker
+                fallbackUri: forward:/fallback/service-unavailable
+
         - id: admin-analytics-service
           uri: lb://ADMIN-ANALYTICS-SERVICE
           predicates:
