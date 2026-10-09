@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Search,
   Users,
+  UserCheck,
   Filter,
   RefreshCw,
   Download,
@@ -19,6 +20,7 @@ import { ClinicalSidebar } from "@/components/clinical/ClinicalSidebar";
 import { ClinicalTopBar } from "@/components/clinical/ClinicalTopBar";
 import { PatientCard } from "@/components/clinical/PatientCard";
 import { clinicalApi } from "@/lib/api/clinicalApi";
+import { getUserProfile } from "@/lib/auth";
 
 const MOCK_INPATIENTS = [
   {
@@ -141,51 +143,101 @@ export default function PatientSearchPage() {
   const [activeWard, setActiveWard] = useState<string>("All Wards");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [activeTabMode, setActiveTabMode] = useState<"ALL" | "MY_PATIENTS">("ALL");
   const [patients, setPatients] = useState<any[]>(MOCK_INPATIENTS);
   const [loading, setLoading] = useState(false);
+
+  const user = typeof window !== 'undefined' ? getUserProfile() : null;
+  const doctorName = user?.fullName || '';
+  const staffId = user?.staffId || '';
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('filter') === 'my-patients') {
+        setActiveTabMode("MY_PATIENTS");
+      }
+    }
+  }, []);
 
   useEffect(() => {
     async function fetchLivePatients() {
       try {
+        setLoading(true);
         const fetched = await clinicalApi.getAllPatients();
         if (fetched && fetched.length > 0) {
-          // Merge API patients if available
-          const merged = fetched.map((p, idx) => ({
-            ...MOCK_INPATIENTS[idx % MOCK_INPATIENTS.length],
-            id: p.id,
-            firstName: p.firstName || MOCK_INPATIENTS[idx % MOCK_INPATIENTS.length].firstName,
-            lastName: p.lastName || MOCK_INPATIENTS[idx % MOCK_INPATIENTS.length].lastName,
-          }));
-          setPatients(merged);
+          setPatients(fetched);
         }
       } catch (e) {
-        console.warn("Using default rich clinical roster");
+        console.warn("Using default rich clinical roster:", e);
+      } finally {
+        setLoading(false);
       }
     }
     fetchLivePatients();
   }, []);
 
-  const wardTabs = [
-    { label: "All Wards", count: 57 },
-    { label: "Cardiology", count: 14 },
-    { label: "ICU", count: 8 },
-    { label: "General", count: 26 },
-    { label: "Pediatrics", count: 9 },
-  ];
+  const myPatientsCount = useMemo(() => {
+    return patients.filter((p) => {
+      if (!doctorName && !staffId) return false;
+      const docLower = doctorName.toLowerCase();
+      const staffLower = staffId.toLowerCase();
+      const attDoc = (p.attendingDoctor || "").toLowerCase();
+      return (doctorName && attDoc.includes(docLower)) || (staffId && attDoc.includes(staffLower));
+    }).length;
+  }, [patients, doctorName, staffId]);
+
+  const wardTabs = useMemo(() => {
+    const counts: Record<string, number> = {
+      "All Wards": patients.length,
+      "Cardiology": 0,
+      "ICU": 0,
+      "General": 0,
+      "Pediatrics": 0
+    };
+    patients.forEach(p => {
+      const w = p.ward || 'General';
+      if (w.toLowerCase().includes('cardio')) counts["Cardiology"] = (counts["Cardiology"] || 0) + 1;
+      else if (w.toLowerCase().includes('icu')) counts["ICU"] = (counts["ICU"] || 0) + 1;
+      else if (w.toLowerCase().includes('ped')) counts["Pediatrics"] = (counts["Pediatrics"] || 0) + 1;
+      else counts["General"] = (counts["General"] || 0) + 1;
+    });
+
+    return [
+      { label: "All Wards", count: counts["All Wards"] },
+      { label: "Cardiology", count: counts["Cardiology"] || 0 },
+      { label: "ICU", count: counts["ICU"] || 0 },
+      { label: "General", count: counts["General"] || 0 },
+      { label: "Pediatrics", count: counts["Pediatrics"] || 0 },
+    ];
+  }, [patients]);
 
   const filteredPatients = patients.filter((p) => {
+    if (activeTabMode === "MY_PATIENTS") {
+      const docLower = doctorName.toLowerCase();
+      const staffLower = staffId.toLowerCase();
+      const attDoc = (p.attendingDoctor || "").toLowerCase();
+      const isMyPatient = (doctorName && attDoc.includes(docLower)) || (staffId && attDoc.includes(staffLower));
+      if (!isMyPatient && myPatientsCount > 0) return false;
+    }
+
     const matchesWard =
       activeWard === "All Wards" ||
-      (p.ward && p.ward.toLowerCase() === activeWard.toLowerCase());
+      (p.ward && p.ward.toLowerCase().includes(activeWard.toLowerCase()));
+
+    const matchesStatus =
+      statusFilter === "All" ||
+      (p.statusBadge && p.statusBadge.toLowerCase() === statusFilter.toLowerCase());
 
     const matchesSearch =
       searchQuery === "" ||
       `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (p.patientIdCode && p.patientIdCode.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (p.bedNumber && p.bedNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (p.attendingDoctor && p.attendingDoctor.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (p.primaryDiagnosis && p.primaryDiagnosis.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    return matchesWard && matchesSearch;
+    return matchesWard && matchesStatus && matchesSearch;
   });
 
   return (
@@ -212,7 +264,7 @@ export default function PatientSearchPage() {
                   Patient Search
                 </h1>
                 <span className="text-xs font-bold font-mono px-3 py-1 rounded-full bg-slate-200/80 text-slate-700 border border-slate-300">
-                  Inpatient Census: 57 Beds
+                  Inpatient Census: {patients.length} Beds
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
@@ -231,6 +283,40 @@ export default function PatientSearchPage() {
                 <span>Quick Intake</span>
               </button>
             </div>
+          </div>
+
+          {/* Mode Switcher: All Inpatients vs My Patients */}
+          <div className="flex items-center gap-2 p-1 bg-slate-100 border border-slate-200 rounded-xl w-fit">
+            <button
+              onClick={() => setActiveTabMode("ALL")}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                activeTabMode === "ALL"
+                  ? "bg-white text-slate-900 shadow-xs border border-slate-200/80"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Users className="w-3.5 h-3.5 text-teal-700" />
+              <span>All Inpatients</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-slate-200/80 text-slate-700 font-bold">
+                {patients.length}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTabMode("MY_PATIENTS")}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                activeTabMode === "MY_PATIENTS"
+                  ? "bg-[#004d40] text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <UserCheck className="w-3.5 h-3.5" />
+              <span>My Assigned Patients</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full font-bold ${
+                activeTabMode === "MY_PATIENTS" ? "bg-white/20 text-white" : "bg-teal-100 text-teal-800"
+              }`}>
+                {myPatientsCount}
+              </span>
+            </button>
           </div>
 
           {/* Search Box Card */}
@@ -268,7 +354,7 @@ export default function PatientSearchPage() {
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono mr-1">
                   Ward:
                 </span>
-                {wardTabs.map((tab) => {
+                {wardTabs.map((tab: { label: string; count: number }) => {
                   const isActive = activeWard === tab.label;
                   return (
                     <button

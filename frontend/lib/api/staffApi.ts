@@ -33,6 +33,7 @@ export interface StaffListParams {
     department?: string;
     status?: string;
     search?: string;
+    createdBy?: string;
     page?: number;
     size?: number;
 }
@@ -73,6 +74,9 @@ export async function getStaffList(params: StaffListParams = {}) {
     if (params.search) {
         query.append('search', params.search);
     }
+    if (params.createdBy) {
+        query.append('createdBy', params.createdBy);
+    }
     if (params.page !== undefined) {
         query.append('page', params.page.toString());
     }
@@ -93,6 +97,35 @@ export async function getStaffList(params: StaffListParams = {}) {
         throw new Error(data.error || data.message || 'Failed to fetch staff list');
     }
     return data;
+}
+
+export interface DoctorSummary {
+    id: number;
+    staffId: string;
+    fullName: string;
+    department: string;
+    designation: string;
+    photoUrl?: string;
+}
+
+export async function getDoctors(): Promise<DoctorSummary[]> {
+    try {
+        const data = await getStaffList({ role: 'Doctor', status: 'Active', size: 50 });
+        if (data && data.content && Array.isArray(data.content)) {
+            return data.content.map((item: any) => ({
+                id: item.id,
+                staffId: item.staffId,
+                fullName: item.fullName,
+                department: item.department || 'General Medicine',
+                designation: item.designation || 'Attending Physician',
+                photoUrl: item.photoUrl,
+            }));
+        }
+        return [];
+    } catch (err) {
+        console.warn("Failed to fetch active doctors list:", err);
+        return [];
+    }
 }
 
 export async function getStaffById(id: string | number) {

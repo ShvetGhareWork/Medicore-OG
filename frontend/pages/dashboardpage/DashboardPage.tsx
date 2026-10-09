@@ -12,6 +12,7 @@ import {
 import { AddMedicModal, StaffMember } from '../addmedicformpage/AddMedicFormPage';
 import { EditStaffModal } from '../../components/admin/EditStaffModal';
 import { getStaffList, deactivateStaff, deleteStaff, resendStaffCredentials } from '../../lib/api/staffApi';
+import { getUserProfile } from '../../lib/auth';
 import { Send, UserX } from 'lucide-react';
 
 const INITIAL_STAFF: StaffMember[] = [
@@ -148,11 +149,13 @@ function mapApiItemToStaffMember(item: any): StaffMember {
         statusDot: statusStr === 'Active' ? 'bg-teal-500' : 'bg-slate-400',
         date: formattedDate,
         initials: initials,
-        avatarUrl: item.photoUrl || undefined
+        avatarUrl: item.photoUrl || undefined,
+        createdByStaffId: item.createdByStaffId
     };
 }
 
 export default function StaffDashboard() {
+    const currentUserProfile = useMemo(() => getUserProfile(), []);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [staffList, setStaffList] = useState<StaffMember[]>(INITIAL_STAFF);
     const [totalElements, setTotalElements] = useState<number>(348);
@@ -163,6 +166,7 @@ export default function StaffDashboard() {
     const [selectedRole, setSelectedRole] = useState('All Roles');
     const [selectedDept, setSelectedDept] = useState('All Departments');
     const [selectedStatus, setSelectedStatus] = useState('All Statuses');
+    const [onlyMyAdditions, setOnlyMyAdditions] = useState(false);
     const [activePage, setActivePage] = useState(1);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
@@ -184,6 +188,7 @@ export default function StaffDashboard() {
                 department: selectedDept,
                 status: selectedStatus,
                 search: debouncedSearch,
+                createdBy: onlyMyAdditions ? 'self' : undefined,
                 page: activePage - 1,
                 size: 10
             });
@@ -199,7 +204,7 @@ export default function StaffDashboard() {
         } finally {
             setIsLoading(false);
         }
-    }, [selectedRole, selectedDept, selectedStatus, debouncedSearch, activePage]);
+    }, [selectedRole, selectedDept, selectedStatus, debouncedSearch, onlyMyAdditions, activePage]);
 
     useEffect(() => {
         fetchStaffData();
@@ -289,6 +294,7 @@ export default function StaffDashboard() {
         setSelectedRole('All Roles');
         setSelectedDept('All Departments');
         setSelectedStatus('All Statuses');
+        setOnlyMyAdditions(false);
         setActivePage(1);
         showToast('Filters reset to default');
     };
@@ -475,6 +481,19 @@ export default function StaffDashboard() {
                         </div>
 
                         <button
+                            type="button"
+                            onClick={() => { setOnlyMyAdditions(prev => !prev); setActivePage(1); }}
+                            className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                                onlyMyAdditions
+                                    ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
+                                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                        >
+                            <UserPlus size={13} className={onlyMyAdditions ? "text-teal-200" : "text-slate-500"} />
+                            <span>Added by Me</span>
+                        </button>
+
+                        <button
                             onClick={handleResetFilters}
                             title="Reset filters"
                             aria-label="Reset filters"
@@ -518,18 +537,33 @@ export default function StaffDashboard() {
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-xs">
                             {filteredStaff.length > 0 ? (
-                                filteredStaff.map((staff, idx) => (
-                                    <TableRow
-                                        key={staff.id + '-' + idx}
-                                        {...staff}
-                                        isNew={staff.date === 'Just Now'}
-                                        isResending={resendingStaffId === staff.id}
-                                        onEdit={() => handleEdit(staff)}
-                                        onDeactivate={() => handleDeactivate(staff)}
-                                        onDelete={() => handleDeletePermanent(staff)}
-                                        onResend={() => handleResendCredentials(staff)}
-                                    />
-                                ))
+                                filteredStaff.map((staff, idx) => {
+                                    const isCreatedByMe = Boolean(
+                                        onlyMyAdditions ||
+                                        (
+                                            staff.createdByStaffId &&
+                                            (
+                                                staff.createdByStaffId === 'self' ||
+                                                (currentUserProfile.staffId && staff.createdByStaffId.toLowerCase() === currentUserProfile.staffId.toLowerCase()) ||
+                                                (currentUserProfile.username && staff.createdByStaffId.toLowerCase() === currentUserProfile.username.toLowerCase()) ||
+                                                (currentUserProfile.email && staff.createdByStaffId.toLowerCase() === currentUserProfile.email.toLowerCase())
+                                            )
+                                        )
+                                    );
+                                    return (
+                                        <TableRow
+                                            key={staff.id + '-' + idx}
+                                            {...staff}
+                                            isNew={staff.date === 'Just Now'}
+                                            isCreatedByMe={isCreatedByMe}
+                                            isResending={resendingStaffId === staff.id}
+                                            onEdit={() => handleEdit(staff)}
+                                            onDeactivate={() => handleDeactivate(staff)}
+                                            onDelete={() => handleDeletePermanent(staff)}
+                                            onResend={() => handleResendCredentials(staff)}
+                                        />
+                                    );
+                                })
                             ) : (
                                 <tr>
                                     <td colSpan={7} className="p-12 text-center text-slate-400 text-xs">
@@ -624,7 +658,7 @@ function StatCard({ title, value, trend, icon, trendStatus = 'good' }: any) {
 }
 
 function TableRow({
-                      name, email, id, role, roleColor, dept, subDept, status, date, initials, avatarUrl, isNew = false, isResending = false, onEdit, onDeactivate, onDelete, onResend
+                      name, email, id, role, roleColor, dept, subDept, status, date, initials, avatarUrl, createdByStaffId, isCreatedByMe = false, isNew = false, isResending = false, onEdit, onDeactivate, onDelete, onResend
                   }: any) {
     const isInactive = status === 'Inactive';
     const [menuOpen, setMenuOpen] = useState(false);
@@ -687,9 +721,15 @@ function TableRow({
                         {avatarUrl ? <img src={avatarUrl} alt={name} className="w-full h-full object-cover" /> : initials}
                     </div>
                     <div>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                             <p className="font-semibold text-slate-900 tracking-tight">{name}</p>
                             {isNew && <span className="text-[9px] bg-teal-100 text-teal-800 font-bold px-1.5 py-0.5 rounded-full">NEW</span>}
+                            {isCreatedByMe && (
+                                <span className="inline-flex items-center gap-1 font-bold px-1.5 py-0.5 rounded-full shadow-2xs">
+                                    {/* <Sparkles size={9} className="text-teal-600" />
+                                    Added by You */}
+                                </span>
+                            )}
                         </div>
                         <p className="text-[11px] text-slate-400 font-normal">{email}</p>
                     </div>
@@ -709,7 +749,12 @@ function TableRow({
                     <span className={`text-xs font-medium ${isInactive ? 'text-slate-600' : 'text-teal-700'}`}>{status}</span>
                 </div>
             </td>
-            <td className="p-4 text-slate-500 text-xs">{date}</td>
+            <td className="p-4 text-slate-500 text-xs">
+                <div>{date}</div>
+                {createdByStaffId && !isCreatedByMe && (
+                    <div className="text-[10px] text-slate-400 font-normal mt-0.5">By: {createdByStaffId}</div>
+                )}
+            </td>
             <td className="p-4 text-right">
                 <div className="flex items-center justify-end gap-1">
                     {/* Quick Action: Resend QR */}

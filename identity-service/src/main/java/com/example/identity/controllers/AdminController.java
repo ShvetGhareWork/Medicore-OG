@@ -27,10 +27,12 @@ public class AdminController {
 
     private final StaffService staffService;
     private final AdminAuditLogService auditLogService;
+    private final com.example.identity.repository.UserRepository userRepository;
 
-    public AdminController(StaffService staffService, AdminAuditLogService auditLogService) {
+    public AdminController(StaffService staffService, AdminAuditLogService auditLogService, com.example.identity.repository.UserRepository userRepository) {
         this.staffService = staffService;
         this.auditLogService = auditLogService;
+        this.userRepository = userRepository;
     }
 
     @GetMapping("/audit-logs")
@@ -54,15 +56,60 @@ public class AdminController {
             @RequestParam(required = false) String department,
             @RequestParam(required = false) StaffStatusType status,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String createdBy,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String direction
     ) {
+        String filterCreatedBy = resolveCurrentAdminStaffId(createdBy);
         Sort sort = "asc".equalsIgnoreCase(direction) ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
-        Page<StaffListItemResponse> response = staffService.getStaffList(role, department, status, search, pageable);
+        Page<StaffListItemResponse> response = staffService.getStaffList(role, department, status, search, filterCreatedBy, pageable);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/my-additions")
+    public ResponseEntity<Page<StaffListItemResponse>> getMyAdditions(
+            @RequestParam(required = false) RoleType role,
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) StaffStatusType status,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction
+    ) {
+        String currentAdminStaffId = resolveCurrentAdminStaffId("self");
+        Sort sort = "asc".equalsIgnoreCase(direction) ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<StaffListItemResponse> response = staffService.getStaffList(role, department, status, search, currentAdminStaffId, pageable);
+        return ResponseEntity.ok(response);
+    }
+
+    private String resolveCurrentAdminStaffId(String createdBy) {
+        if (createdBy == null || createdBy.isBlank()) {
+            return null;
+        }
+        if ("self".equalsIgnoreCase(createdBy) || "me".equalsIgnoreCase(createdBy)) {
+            var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null) {
+                if (authentication.getPrincipal() instanceof com.example.identity.entity.User currentUser) {
+                    return currentUser.getStaffId() != null && !currentUser.getStaffId().isBlank()
+                            ? currentUser.getStaffId()
+                            : (currentUser.getEmail() != null ? currentUser.getEmail() : currentUser.getUsername());
+                }
+                String authName = authentication.getName();
+                if (authName != null && !authName.isBlank()) {
+                    return userRepository.findByUsername(authName)
+                            .or(() -> userRepository.findByEmail(authName))
+                            .or(() -> userRepository.findByStaffId(authName))
+                            .map(u -> u.getStaffId() != null && !u.getStaffId().isBlank() ? u.getStaffId() : u.getUsername())
+                            .orElse(authName);
+                }
+            }
+        }
+        return createdBy;
     }
 
     @GetMapping("/{id}")

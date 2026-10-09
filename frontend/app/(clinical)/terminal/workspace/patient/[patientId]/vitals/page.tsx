@@ -45,26 +45,31 @@ export default function PatientVitalsPage({
 
   const loadData = async () => {
     try {
-      const [overviewData, entriesData] = await Promise.all([
+      const [overviewData, entriesData, livePatient] = await Promise.all([
         clinicalApi.getPatientOverview(patientId).catch(() => null),
         clinicalApi.getEntriesByPatient(patientId, "VITALS_SIGN").catch(() => []),
+        clinicalApi.getPatientDetails(patientId).catch(() => null),
       ]);
 
       if (overviewData) setOverview(overviewData);
       setVitalsList(entriesData);
 
-      setPatient({
-        id: patientId,
-        firstName: "Eleanor",
-        lastName: "Vance",
-        dateOfBirth: "1968-04-12",
-        gender: "F",
-        bloodGroup: "A+",
-        roomNumber: "ICU-04",
-        bedNumber: "Bed 02",
-        ward: "ICU",
-        allergies: overviewData?.allergies || [],
-      });
+      if (livePatient) {
+        setPatient(livePatient);
+      } else {
+        setPatient({
+          id: patientId,
+          firstName: "Patient",
+          lastName: patientId,
+          dateOfBirth: "1985-04-12",
+          gender: "F",
+          bloodGroup: "O+",
+          roomNumber: "General",
+          bedNumber: "Bed 01",
+          ward: "Inpatient Care",
+          allergies: overviewData?.allergies || [],
+        });
+      }
     } catch (e) {
       console.error(e);
     }

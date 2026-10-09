@@ -56,6 +56,9 @@ public class Staff {
     @Enumerated(EnumType.STRING)
     private StaffStatusType status = StaffStatusType.ACTIVE;
 
+    @Column(name = "created_by_staff_id")
+    private String createdByStaffId;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
@@ -168,6 +171,14 @@ public class Staff {
 
     public void setStatus(StaffStatusType status) {
         this.status = status;
+    }
+
+    public String getCreatedByStaffId() {
+        return createdByStaffId;
+    }
+
+    public void setCreatedByStaffId(String createdByStaffId) {
+        this.createdByStaffId = createdByStaffId;
     }
 
     public LocalDateTime getCreatedAt() {

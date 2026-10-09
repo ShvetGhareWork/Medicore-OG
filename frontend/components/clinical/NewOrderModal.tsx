@@ -141,7 +141,7 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
           <div>
             <h3 className="text-lg font-bold text-slate-900">Create Clinical Order</h3>
             <p className="text-xs font-mono text-slate-500 mt-0.5">
-              Patient: Rajesh Kulkarni (MC-20481)
+              Patient ID: {patientId}
             </p>
           </div>
           <button

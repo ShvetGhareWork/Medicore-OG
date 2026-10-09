@@ -132,13 +132,12 @@ export const ClinicalSidebar: React.FC<ClinicalSidebarProps> = ({ patientId }) =
                 },
                 {
                   label: "My Patients",
-                  href: "/terminal/workspace/patient-search",
+                  href: "/terminal/workspace/patient-search?filter=my-patients",
                   icon: UserCheck,
                 },
               ].map((item, idx) => {
                 const Icon = item.icon;
-                // Highlight Inpatient Census when on patient-search
-                const isActive = idx === 0 && pathname === "/terminal/workspace/patient-search";
+                const isActive = pathname === "/terminal/workspace/patient-search";
 
                 return (
                   <Link

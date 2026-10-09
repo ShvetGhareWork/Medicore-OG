@@ -16,11 +16,16 @@ public class StaffListItemResponse {
     private StaffStatusType status;
     private LocalDateTime createdAt;
     private String photoUrl;
+    private String createdByStaffId;
 
     public StaffListItemResponse() {
     }
 
     public StaffListItemResponse(Long id, String staffId, String fullName, String email, RoleType role, String department, String designation, StaffStatusType status, LocalDateTime createdAt, String photoUrl) {
+        this(id, staffId, fullName, email, role, department, designation, status, createdAt, photoUrl, null);
+    }
+
+    public StaffListItemResponse(Long id, String staffId, String fullName, String email, RoleType role, String department, String designation, StaffStatusType status, LocalDateTime createdAt, String photoUrl, String createdByStaffId) {
         this.id = id;
         this.staffId = staffId;
         this.fullName = fullName;
@@ -31,6 +36,7 @@ public class StaffListItemResponse {
         this.status = status;
         this.createdAt = createdAt;
         this.photoUrl = photoUrl;
+        this.createdByStaffId = createdByStaffId;
     }
 
     public Long getId() {
@@ -111,5 +117,13 @@ public class StaffListItemResponse {
 
     public void setPhotoUrl(String photoUrl) {
         this.photoUrl = photoUrl;
+    }
+
+    public String getCreatedByStaffId() {
+        return createdByStaffId;
+    }
+
+    public void setCreatedByStaffId(String createdByStaffId) {
+        this.createdByStaffId = createdByStaffId;
     }
 }

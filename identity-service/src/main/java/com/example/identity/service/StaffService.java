@@ -139,6 +139,22 @@ public class StaffService {
 
         AccessLevelType accessLevel = request.getAccessLevel() != null ? request.getAccessLevel() : AccessLevelType.STANDARD;
 
+        String currentStaffId = null;
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null) {
+            if (authentication.getPrincipal() instanceof User currentUser) {
+                currentStaffId = currentUser.getStaffId() != null && !currentUser.getStaffId().isBlank()
+                        ? currentUser.getStaffId()
+                        : (currentUser.getEmail() != null ? currentUser.getEmail() : currentUser.getUsername());
+            } else if (authentication.getName() != null && !authentication.getName().isBlank()) {
+                String authName = authentication.getName();
+                currentStaffId = userRepository.findByUsername(authName)
+                        .or(() -> userRepository.findByEmail(authName))
+                        .map(u -> u.getStaffId() != null && !u.getStaffId().isBlank() ? u.getStaffId() : u.getUsername())
+                        .orElse(authName);
+            }
+        }
+
         Staff staff = new Staff();
         staff.setStaffId(staffId);
         staff.setFullName(request.getFullName());
@@ -152,6 +168,7 @@ public class StaffService {
         staff.setLoginMethod(loginMethod);
         staff.setPhotoUrl(request.getPhotoUrl());
         staff.setStatus(StaffStatusType.ACTIVE);
+        staff.setCreatedByStaffId(currentStaffId);
 
         Staff savedStaff = staffRepository.save(staff);
 
@@ -204,6 +221,10 @@ public class StaffService {
     }
 
     public Page<StaffListItemResponse> getStaffList(RoleType role, String department, StaffStatusType status, String search, Pageable pageable) {
+        return getStaffList(role, department, status, search, null, pageable);
+    }
+
+    public Page<StaffListItemResponse> getStaffList(RoleType role, String department, StaffStatusType status, String search, String createdByStaffId, Pageable pageable) {
         Specification<Staff> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -217,6 +238,25 @@ public class StaffService {
 
             if (status != null) {
                 predicates.add(cb.equal(root.get("status"), status));
+            }
+
+            if (createdByStaffId != null && !createdByStaffId.isBlank()) {
+                Optional<User> creatorOpt = userRepository.findByStaffId(createdByStaffId)
+                        .or(() -> userRepository.findByUsername(createdByStaffId))
+                        .or(() -> userRepository.findByEmail(createdByStaffId));
+
+                if (creatorOpt.isPresent()) {
+                    User creator = creatorOpt.get();
+                    List<String> possibleIds = new ArrayList<>();
+                    if (creator.getStaffId() != null && !creator.getStaffId().isBlank()) possibleIds.add(creator.getStaffId());
+                    if (creator.getUsername() != null && !creator.getUsername().isBlank()) possibleIds.add(creator.getUsername());
+                    if (creator.getEmail() != null && !creator.getEmail().isBlank()) possibleIds.add(creator.getEmail());
+                    possibleIds.add(createdByStaffId);
+
+                    predicates.add(root.get("createdByStaffId").in(possibleIds));
+                } else {
+                    predicates.add(cb.equal(root.get("createdByStaffId"), createdByStaffId));
+                }
             }
 
             if (search != null && !search.isBlank()) {
@@ -545,7 +585,8 @@ public class StaffService {
                 badgeVersion,
                 staff.getStatus(),
                 staff.getCreatedAt(),
-                staff.getPhotoUrl()
+                staff.getPhotoUrl(),
+                staff.getCreatedByStaffId()
         );
     }
 
@@ -562,7 +603,8 @@ public class StaffService {
                 staff.getDesignation(),
                 staff.getStatus(),
                 staff.getCreatedAt(),
-                staff.getPhotoUrl()
+                staff.getPhotoUrl(),
+                staff.getCreatedByStaffId()
         );
     }
 }

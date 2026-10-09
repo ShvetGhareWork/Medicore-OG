@@ -27,11 +27,16 @@ public class StaffResponse {
     private StaffStatusType status;
     private LocalDateTime createdAt;
     private String photoUrl;
+    private String createdByStaffId;
 
     public StaffResponse() {
     }
 
     public StaffResponse(Long id, String staffId, String fullName, String email, String contactNumber, LocalDate dateOfBirth, RoleType role, String department, String designation, Long reportingToId, String reportingToName, AccessLevelType accessLevel, LoginMethodType loginMethod, String badgeToken, int badgeVersion, StaffStatusType status, LocalDateTime createdAt, String photoUrl) {
+        this(id, staffId, fullName, email, contactNumber, dateOfBirth, role, department, designation, reportingToId, reportingToName, accessLevel, loginMethod, badgeToken, badgeVersion, status, createdAt, photoUrl, null);
+    }
+
+    public StaffResponse(Long id, String staffId, String fullName, String email, String contactNumber, LocalDate dateOfBirth, RoleType role, String department, String designation, Long reportingToId, String reportingToName, AccessLevelType accessLevel, LoginMethodType loginMethod, String badgeToken, int badgeVersion, StaffStatusType status, LocalDateTime createdAt, String photoUrl, String createdByStaffId) {
         this.id = id;
         this.staffId = staffId;
         this.fullName = fullName;
@@ -50,6 +55,7 @@ public class StaffResponse {
         this.status = status;
         this.createdAt = createdAt;
         this.photoUrl = photoUrl;
+        this.createdByStaffId = createdByStaffId;
     }
 
     public Long getId() {
@@ -194,5 +200,13 @@ public class StaffResponse {
 
     public void setPhotoUrl(String photoUrl) {
         this.photoUrl = photoUrl;
+    }
+
+    public String getCreatedByStaffId() {
+        return createdByStaffId;
+    }
+
+    public void setCreatedByStaffId(String createdByStaffId) {
+        this.createdByStaffId = createdByStaffId;
     }
 }

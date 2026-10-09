@@ -25,6 +25,7 @@ export interface StaffMember {
     date: string;
     initials: string;
     avatarUrl?: string;
+    createdByStaffId?: string;
 }
 
 interface AddMedicModalProps {
@@ -157,14 +158,18 @@ export function AddMedicModal({ isOpen, onClose, onStaffAdded }: AddMedicModalPr
                 name: result.fullName || formData.fullName,
                 email: result.email || formData.email,
                 id: result.staffId,
+                dbId: result.id,
                 role: formData.role,
                 roleColor: roleColorMap[formData.role] || 'bg-slate-100 text-slate-700',
                 dept: (result.department || formData.department || '').split('&')[0].trim(),
                 subDept: result.designation || formData.designation,
                 status: 'Active',
+                statusColor: 'text-teal-700 bg-teal-50',
+                statusDot: 'bg-teal-500',
                 date: 'Just Now',
                 initials: initials,
-                avatarUrl: avatarPreview || undefined
+                avatarUrl: avatarPreview || undefined,
+                createdByStaffId: result.createdByStaffId || 'self'
             };
 
             setTimeout(() => {

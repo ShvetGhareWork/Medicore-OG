@@ -3,6 +3,7 @@ package com.example.identity.security;
 import com.example.identity.dto.*;
 import com.example.identity.entity.User;
 import com.example.identity.entity.type.AuthProviderType;
+import com.example.identity.entity.type.LoginMethodType;
 import com.example.identity.entity.type.RoleType;
 import com.example.identity.entity.type.StaffStatusType;
 import com.example.identity.repository.UserRepository;
@@ -31,6 +32,8 @@ public class AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
+    private final com.example.identity.repository.StaffRepository staffRepository;
+    private final com.example.identity.repository.DepartmentRepository departmentRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthUtil authUtil;
     private final AdminAuditLogService auditLogService;
@@ -38,11 +41,15 @@ public class AuthService {
     private final String adminRegistrationSecret;
 
     public AuthService(AuthenticationManager authenticationManager, UserRepository userRepository,
+                       com.example.identity.repository.StaffRepository staffRepository,
+                       com.example.identity.repository.DepartmentRepository departmentRepository,
                        PasswordEncoder passwordEncoder, AuthUtil authUtil, AdminAuditLogService auditLogService,
                        ClinicalLoginEventPublisher loginEventPublisher,
                        @Value("${app.security.admin-registration-secret:MediCore@AdminSecret2026}") String adminRegistrationSecret) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
+        this.staffRepository = staffRepository;
+        this.departmentRepository = departmentRepository;
         this.passwordEncoder = passwordEncoder;
         this.authUtil = authUtil;
         this.auditLogService = auditLogService;
@@ -257,6 +264,28 @@ public class AuthService {
                 .build();
 
         User saved = userRepository.save(adminUser);
+
+        // Also create matching Staff entity so admin appears in staff directory
+        com.example.identity.entity.Department adminDept = departmentRepository.findByNameIgnoreCase("Administration")
+                .orElseGet(() -> {
+                    com.example.identity.entity.Department d = new com.example.identity.entity.Department();
+                    d.setName("Administration");
+                    d.setCode("ADM");
+                    return departmentRepository.save(d);
+                });
+
+        com.example.identity.entity.Staff adminStaff = new com.example.identity.entity.Staff();
+        adminStaff.setStaffId(staffId);
+        adminStaff.setFullName(request.getFullName().trim());
+        adminStaff.setEmail(request.getEmail().trim());
+        adminStaff.setRole(RoleType.ADMINISTRATIVE);
+        adminStaff.setDepartment(adminDept);
+        adminStaff.setDesignation("Hospital Administrator");
+        adminStaff.setAccessLevel(AccessLevelType.FULL);
+        adminStaff.setLoginMethod(LoginMethodType.PASSWORD);
+        adminStaff.setStatus(StaffStatusType.ACTIVE);
+        adminStaff.setCreatedByStaffId(staffId);
+        staffRepository.save(adminStaff);
 
         auditLogService.logEvent("ADMIN_REGISTERED", saved.getUsername(), saved.getId(),
                 saved.getRoles().toString(), "SUCCESS", "Administrator account created with Staff ID " + staffId);

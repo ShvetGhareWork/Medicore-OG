@@ -6,13 +6,17 @@ import com.example.identity.entity.Department;
 import com.example.identity.entity.Patient;
 import com.example.identity.entity.Staff;
 import com.example.identity.entity.type.AdmissionStatusType;
+import com.example.identity.entity.User;
 import com.example.identity.repository.DepartmentRepository;
 import com.example.identity.repository.PatientRepository;
 import com.example.identity.repository.StaffRepository;
+import com.example.identity.repository.UserRepository;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +24,7 @@ import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class PatientService {
@@ -27,11 +32,16 @@ public class PatientService {
     private final PatientRepository patientRepository;
     private final StaffRepository staffRepository;
     private final DepartmentRepository departmentRepository;
+    private final UserRepository userRepository;
 
-    public PatientService(PatientRepository patientRepository, StaffRepository staffRepository, DepartmentRepository departmentRepository) {
+    public PatientService(PatientRepository patientRepository,
+                          StaffRepository staffRepository,
+                          DepartmentRepository departmentRepository,
+                          UserRepository userRepository) {
         this.patientRepository = patientRepository;
         this.staffRepository = staffRepository;
         this.departmentRepository = departmentRepository;
+        this.userRepository = userRepository;
     }
 
     @Transactional
@@ -119,6 +129,15 @@ public class PatientService {
     }
 
     public Page<PatientResponse> getPatients(AdmissionStatusType status, String search, Pageable pageable) {
+        return getPatients(status, null, null, null, search, pageable);
+    }
+
+    public Page<PatientResponse> getPatients(AdmissionStatusType status,
+                                            String ward,
+                                            Long attendingDoctorId,
+                                            String attendingDoctor,
+                                            String search,
+                                            Pageable pageable) {
         Specification<Patient> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -126,12 +145,61 @@ public class PatientService {
                 predicates.add(cb.equal(root.get("admissionStatus"), status));
             }
 
+            if (ward != null && !ward.isBlank() && !"All Wards".equalsIgnoreCase(ward)) {
+                String wardPattern = "%" + ward.toLowerCase() + "%";
+                Predicate wardPredicate = cb.or(
+                        cb.like(cb.lower(root.get("wardNumber")), wardPattern),
+                        cb.like(cb.lower(root.get("department").get("name")), wardPattern)
+                );
+                predicates.add(wardPredicate);
+            }
+
+            if (attendingDoctorId != null) {
+                predicates.add(cb.equal(root.get("attendingDoctor").get("id"), attendingDoctorId));
+            }
+
+            if (attendingDoctor != null && !attendingDoctor.isBlank() && !"Attending Doctor".equalsIgnoreCase(attendingDoctor)) {
+                String docFilter = attendingDoctor.trim();
+                if ("self".equalsIgnoreCase(docFilter)) {
+                    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                    if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
+                        String principal = auth.getName();
+                        Optional<Staff> staffOpt = staffRepository.findByStaffId(principal)
+                                .or(() -> staffRepository.findByEmail(principal))
+                                .or(() -> {
+                                    Optional<User> u = userRepository.findByUsername(principal)
+                                            .or(() -> userRepository.findByEmail(principal));
+                                    if (u.isPresent() && u.get().getStaffId() != null) {
+                                        return staffRepository.findByStaffId(u.get().getStaffId());
+                                    }
+                                    return Optional.empty();
+                                });
+
+                        if (staffOpt.isPresent()) {
+                            predicates.add(cb.equal(root.get("attendingDoctor").get("id"), staffOpt.get().getId()));
+                        } else {
+                            predicates.add(cb.equal(root.get("attendingDoctor").get("fullName"), principal));
+                        }
+                    }
+                } else {
+                    String docPattern = "%" + docFilter.toLowerCase() + "%";
+                    Predicate docPredicate = cb.or(
+                            cb.like(cb.lower(root.get("attendingDoctor").get("fullName")), docPattern),
+                            cb.like(cb.lower(root.get("attendingDoctor").get("staffId")), docPattern),
+                            cb.like(cb.lower(root.get("attendingDoctor").get("email")), docPattern)
+                    );
+                    predicates.add(docPredicate);
+                }
+            }
+
             if (search != null && !search.isBlank()) {
                 String pattern = "%" + search.toLowerCase() + "%";
                 Predicate searchPredicate = cb.or(
                         cb.like(cb.lower(root.get("fullName")), pattern),
                         cb.like(cb.lower(root.get("patientId")), pattern),
-                        cb.like(cb.lower(root.get("admittingDiagnosis")), pattern)
+                        cb.like(cb.lower(root.get("admittingDiagnosis")), pattern),
+                        cb.like(cb.lower(root.get("wardNumber")), pattern),
+                        cb.like(cb.lower(root.get("bedNumber")), pattern)
                 );
                 predicates.add(searchPredicate);
             }
@@ -142,9 +210,19 @@ public class PatientService {
         return patientRepository.findAll(spec, pageable).map(this::mapToPatientResponse);
     }
 
+    public Page<PatientResponse> getMyPatients(Pageable pageable) {
+        return getPatients(null, null, null, "self", null, pageable);
+    }
+
     public PatientResponse getPatientById(Long id) {
         Patient patient = patientRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Patient not found with ID: " + id));
+        return mapToPatientResponse(patient);
+    }
+
+    public PatientResponse getPatientByPatientId(String patientId) {
+        Patient patient = patientRepository.findByPatientId(patientId)
+                .orElseThrow(() -> new IllegalArgumentException("Patient not found with Patient ID: " + patientId));
         return mapToPatientResponse(patient);
     }
 

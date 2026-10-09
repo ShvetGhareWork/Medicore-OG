@@ -42,10 +42,11 @@ export const ClinicalTopBar: React.FC<ClinicalTopBarProps> = ({
   onOpenOrderModal,
   onOpenFlagModal,
   onOpenSoapModal,
-  wardName = "Cardiology Ward 3",
+  wardName,
 }) => {
   const router = useRouter();
   const user = getUser();
+  const currentWard = wardName || patient?.ward || "General Ward";
 
   return (
     <header className="h-16 bg-white border-b border-slate-200/80 px-6 flex items-center justify-between shrink-0 z-10 shadow-xs">
@@ -56,21 +57,21 @@ export const ClinicalTopBar: React.FC<ClinicalTopBarProps> = ({
           <span className="text-[11px] font-mono text-slate-500 uppercase tracking-wider">
             Ward / Facility:
           </span>
-          <span className="text-slate-900 font-bold">{wardName}</span>
+          <span className="text-slate-900 font-bold">{currentWard}</span>
           <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
         </div>
 
         {patient && (
           <div className="hidden lg:flex items-center space-x-2 pl-3 border-l border-slate-200">
             <span className="text-xs font-semibold text-slate-800">
-              {patient.firstName} {patient.lastName}
+              {patient.fullName || `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Patient'}
             </span>
             <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold">
-              #{patient.id.substring(0, 8)}
+              #{patient.id}
             </span>
             <span className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full flex items-center space-x-1">
               <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-              <span>Critical</span>
+              <span>{patient.statusBadge || "Admitted"}</span>
             </span>
           </div>
         )}

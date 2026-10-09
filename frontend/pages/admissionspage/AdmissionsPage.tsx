@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useRef, ChangeEvent } from 'react';
+import React, { useState, useEffect, useMemo, useRef, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Search, Bell, Plus, Users, ClipboardCheck, Clock, PieChart,
@@ -11,7 +11,8 @@ import {
     ArrowRight, ArrowLeft, Check, User, Phone, MapPin, Stethoscope, Shield,
     FileCheck, Award
 } from 'lucide-react';
-import { createAdmission, CreateAdmissionPayload, AdmissionPatient } from '../../lib/api/admissionsApi';
+import { createAdmission, CreateAdmissionPayload, AdmissionPatient, getAdmissionsList, mapBackendPatientToAdmissionPatient } from '../../lib/api/admissionsApi';
+import { getDoctors, DoctorSummary } from '../../lib/api/staffApi';
 
 /* =========================================
    INITIAL ADMISSION SEED DATA MATCHING IMAGE
@@ -153,15 +154,37 @@ interface AddAdmissionModalProps {
     isOpen: boolean;
     onClose: () => void;
     onAdmissionAdded?: (newAdmission: AdmissionPatient) => void;
+    doctorsList?: DoctorSummary[];
 }
 
-export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmissionModalProps) {
+export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded, doctorsList }: AddAdmissionModalProps) {
     const [step, setStep] = useState(1);
     const [direction, setDirection] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [createdResult, setCreatedResult] = useState<AdmissionPatient | null>(null);
+
+    const [availableDoctors, setAvailableDoctors] = useState<DoctorSummary[]>(doctorsList || []);
+    const [isLoadingDoctors, setIsLoadingDoctors] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setIsLoadingDoctors(true);
+            getDoctors()
+                .then(docs => {
+                    if (docs && docs.length > 0) {
+                        setAvailableDoctors(docs);
+                    }
+                })
+                .catch(err => {
+                    console.error("Failed to fetch doctors:", err);
+                })
+                .finally(() => {
+                    setIsLoadingDoctors(false);
+                });
+        }
+    }, [isOpen]);
 
     // Admission Form State starts blank with no pre-filled mock defaults
     const [formData, setFormData] = useState({
@@ -188,6 +211,7 @@ export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmi
 
         // Doctor & Dept
         attendingDoctor: '',
+        attendingDoctorId: undefined as number | undefined,
         doctorSpecialty: '',
 
         // Ward & Bed
@@ -250,6 +274,7 @@ export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmi
             admittingDiagnosis: formData.admittingDiagnosis || formData.chiefComplaint,
 
             attendingDoctor: formData.attendingDoctor,
+            attendingDoctorId: formData.attendingDoctorId,
             doctorSpecialty: formData.doctorSpecialty,
 
             ward: formData.ward,
@@ -307,6 +332,7 @@ export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmi
             admittingDiagnosis: '',
 
             attendingDoctor: '',
+            attendingDoctorId: undefined,
             doctorSpecialty: '',
 
             ward: 'ICU',
@@ -720,41 +746,64 @@ export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmi
 
                                                 {/* Attending Physician Selection */}
                                                 <div className="pt-2 border-t border-slate-200">
-                                                    <label className="block text-xs font-semibold text-slate-800 mb-1.5">
-                                                        Assigned Attending Doctor <span className="text-rose-500">*</span>
-                                                    </label>
-                                                    <div className="grid grid-cols-2 gap-2">
-                                                        {[
-                                                            { name: 'Dr. Marcus Vance', dept: 'Cardiology' },
-                                                            { name: 'Dr. Priya Shah', dept: 'ICU Lead' },
-                                                            { name: 'Dr. Rahul Sharma', dept: 'Internal Med' },
-                                                            { name: 'Dr. Ananya Desai', dept: 'Neurology' }
-                                                        ].map((doc) => {
-                                                            const isSelected = formData.attendingDoctor === doc.name;
-                                                            return (
-                                                                <button
-                                                                    key={doc.name}
-                                                                    type="button"
-                                                                    onClick={() => setFormData({ ...formData, attendingDoctor: doc.name, doctorSpecialty: doc.dept })}
-                                                                    className={`p-3 rounded-xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
-                                                                        isSelected
-                                                                            ? 'border-teal-600 bg-teal-50/50 shadow-xs ring-1 ring-teal-600/30'
-                                                                            : 'border-slate-200 bg-white hover:border-slate-300'
-                                                                    }`}
-                                                                >
-                                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${
-                                                                        isSelected ? 'bg-teal-700 text-white' : 'bg-slate-100 text-slate-600'
-                                                                    }`}>
-                                                                        {doc.name.slice(4, 6)}
-                                                                    </div>
-                                                                    <div>
-                                                                        <span className="text-xs font-bold text-slate-900 block leading-tight">{doc.name}</span>
-                                                                        <span className="text-[10px] text-slate-500">{doc.dept}</span>
-                                                                    </div>
-                                                                </button>
-                                                            );
-                                                        })}
+                                                    <div className="flex items-center justify-between mb-1.5">
+                                                        <label className="block text-xs font-semibold text-slate-800">
+                                                            Assigned Attending Doctor <span className="text-rose-500">*</span>
+                                                        </label>
+                                                        {availableDoctors.length > 0 && (
+                                                            <span className="text-[10px] font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
+                                                                {availableDoctors.length} Active Doctor{availableDoctors.length > 1 ? 's' : ''} in DB
+                                                            </span>
+                                                        )}
                                                     </div>
+
+                                                    {isLoadingDoctors ? (
+                                                        <div className="p-4 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-slate-200 animate-pulse">
+                                                            Loading medical staff from directory...
+                                                        </div>
+                                                    ) : (
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
+                                                            {(availableDoctors.length > 0
+                                                                ? availableDoctors
+                                                                : [
+                                                                    { id: -1, staffId: 'DOC-01', fullName: 'Dr. Marcus Vance', department: 'Cardiology', designation: 'Sr. Cardiologist' },
+                                                                    { id: -2, staffId: 'DOC-02', fullName: 'Dr. Priya Shah', department: 'ICU Lead', designation: 'Intensivist' },
+                                                                    { id: -3, staffId: 'DOC-03', fullName: 'Dr. Rahul Sharma', department: 'Internal Med', designation: 'General Physician' },
+                                                                    { id: -4, staffId: 'DOC-04', fullName: 'Dr. Ananya Desai', department: 'Neurology', designation: 'Neuro Specialist' }
+                                                                ]
+                                                            ).map((doc) => {
+                                                                const isSelected = formData.attendingDoctor === doc.fullName || (doc.id > 0 && formData.attendingDoctorId === doc.id);
+                                                                const initials = doc.fullName.replace(/^Dr\.\s*/i, '').slice(0, 2).toUpperCase() || 'DR';
+                                                                return (
+                                                                    <button
+                                                                        key={doc.staffId || doc.id || doc.fullName}
+                                                                        type="button"
+                                                                        onClick={() => setFormData({
+                                                                            ...formData,
+                                                                            attendingDoctor: doc.fullName,
+                                                                            attendingDoctorId: doc.id > 0 ? doc.id : undefined,
+                                                                            doctorSpecialty: doc.department || doc.designation
+                                                                        })}
+                                                                        className={`p-3 rounded-xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
+                                                                            isSelected
+                                                                                ? 'border-teal-600 bg-teal-50/70 shadow-xs ring-1 ring-teal-600/30'
+                                                                                : 'border-slate-200 bg-white hover:border-teal-300 hover:bg-slate-50/50'
+                                                                        }`}
+                                                                    >
+                                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                                                                            isSelected ? 'bg-teal-700 text-white shadow-xs' : 'bg-slate-100 text-slate-700'
+                                                                        }`}>
+                                                                            {initials}
+                                                                        </div>
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <span className="text-xs font-bold text-slate-900 block leading-tight truncate">{doc.fullName}</span>
+                                                                            <span className="text-[10px] text-slate-500 block truncate">{doc.department || doc.designation}</span>
+                                                                        </div>
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         )}
@@ -1015,6 +1064,8 @@ export function AddAdmissionModal({ isOpen, onClose, onAdmissionAdded }: AddAdmi
 export default function AdmissionsPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [admissionsList, setAdmissionsList] = useState<AdmissionPatient[]>(INITIAL_ADMISSIONS);
+    const [doctors, setDoctors] = useState<DoctorSummary[]>([]);
+    const [isLoadingAdmissions, setIsLoadingAdmissions] = useState(false);
 
     // Filter States
     const [searchQuery, setSearchQuery] = useState('');
@@ -1024,6 +1075,36 @@ export default function AdmissionsPage() {
     const [activePage, setActivePage] = useState(1);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+    const loadAdmissions = () => {
+        setIsLoadingAdmissions(true);
+        getAdmissionsList({ size: 100 })
+            .then(data => {
+                if (data && data.content && Array.isArray(data.content) && data.content.length > 0) {
+                    const mapped = data.content.map(mapBackendPatientToAdmissionPatient);
+                    setAdmissionsList(mapped);
+                }
+            })
+            .catch(err => {
+                console.error("Failed to load admissions from API:", err);
+            })
+            .finally(() => {
+                setIsLoadingAdmissions(false);
+            });
+    };
+
+    useEffect(() => {
+        loadAdmissions();
+        getDoctors()
+            .then(docs => {
+                if (docs && docs.length > 0) {
+                    setDoctors(docs);
+                }
+            })
+            .catch(err => {
+                console.error("Error fetching doctors in AdmissionsPage:", err);
+            });
+    }, []);
+
     const showToast = (msg: string) => {
         setToastMessage(msg);
         setTimeout(() => setToastMessage(null), 3500);
@@ -1032,6 +1113,7 @@ export default function AdmissionsPage() {
     const handleAdmissionAdded = (newAdmission: AdmissionPatient) => {
         setAdmissionsList(prev => [newAdmission, ...prev]);
         showToast(`Patient "${newAdmission.fullName}" admitted successfully!`);
+        loadAdmissions();
     };
 
     // Filter Logic matching image
@@ -1208,10 +1290,12 @@ export default function AdmissionsPage() {
                                     className="appearance-none bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer focus:outline-none"
                                 >
                                     <option value="Attending Doctor">Attending Doctor</option>
-                                    <option value="Dr. Marcus Vance">Dr. Marcus Vance</option>
-                                    <option value="Dr. Priya Shah">Dr. Priya Shah</option>
-                                    <option value="Dr. Rahul Sharma">Dr. Rahul Sharma</option>
-                                    <option value="Dr. Ananya Desai">Dr. Ananya Desai</option>
+                                    {(doctors.length > 0
+                                        ? doctors.map(d => d.fullName)
+                                        : ['Dr. Marcus Vance', 'Dr. Priya Shah', 'Dr. Rahul Sharma', 'Dr. Ananya Desai']
+                                    ).map((docName) => (
+                                        <option key={docName} value={docName}>{docName}</option>
+                                    ))}
                                 </select>
                                 <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                             </div>
@@ -1302,6 +1386,7 @@ export default function AdmissionsPage() {
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 onAdmissionAdded={handleAdmissionAdded}
+                doctorsList={doctors}
             />
         </div>
     );

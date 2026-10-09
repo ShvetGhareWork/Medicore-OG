@@ -51,24 +51,29 @@ export default function PatientOverviewPage({
   const loadData = async () => {
     try {
       setLoading(true);
-      const data = await clinicalApi.getPatientOverview(patientId).catch(() => null);
+      const [data, livePatient] = await Promise.all([
+        clinicalApi.getPatientOverview(patientId).catch(() => null),
+        clinicalApi.getPatientDetails(patientId).catch(() => null),
+      ]);
+
       if (data) setOverview(data);
 
-      setPatient({
-        id: patientId,
-        firstName: "Rajesh",
-        lastName: "Kulkarni",
-        dateOfBirth: "1968-05-14",
-        gender: "M",
-        bloodGroup: "B+",
-        roomNumber: "C-12",
-        bedNumber: "Bed C-12",
-        ward: "Cardiology Ward 3",
-        allergies: [
-          { allergen: "Penicillin", severity: "HIGH", reaction: "Anaphylaxis" },
-          { allergen: "Sulfa Drugs", severity: "MEDIUM", reaction: "Severe Rash" },
-        ],
-      });
+      if (livePatient) {
+        setPatient(livePatient);
+      } else {
+        setPatient({
+          id: patientId,
+          firstName: "Patient",
+          lastName: patientId,
+          dateOfBirth: "1985-05-14",
+          gender: "M",
+          bloodGroup: "O+",
+          roomNumber: "General",
+          bedNumber: "Bed #01",
+          ward: "Inpatient Care",
+          allergies: [],
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -112,13 +117,15 @@ export default function PatientOverviewPage({
                 Patient Search
               </Link>
               <span>›</span>
-              <span className="font-bold text-slate-900">Rajesh Kulkarni</span>
+              <span className="font-bold text-slate-900">
+                {patient?.fullName || `${patient?.firstName || ''} ${patient?.lastName || ''}`.trim() || 'Patient'}
+              </span>
               <span className="font-mono bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold">
-                #MC-20481
+                #{patient?.id || patientId}
               </span>
               <span className="bg-rose-100 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center space-x-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                <span>Critical</span>
+                <span>{patient?.statusBadge || "Under Care"}</span>
               </span>
             </div>
 
@@ -174,17 +181,17 @@ export default function PatientOverviewPage({
                 {/* Avatar & Patient Name */}
                 <div className="flex items-start space-x-4">
                   <div className="w-14 h-14 rounded-2xl bg-blue-100 text-blue-800 font-black text-lg flex items-center justify-center shrink-0 border border-blue-200">
-                    RK
+                    {(patient?.firstName?.[0] || "P") + (patient?.lastName?.[0] || "")}
                   </div>
                   <div>
                     <h2 className="text-xl font-black text-slate-900 leading-tight">
-                      Rajesh Kulkarni
+                      {patient?.fullName || `${patient?.firstName || ''} ${patient?.lastName || ''}`.trim() || 'Patient'}
                     </h2>
                     <p className="text-xs text-slate-500 font-medium mt-0.5">
-                      58y • Male • <span className="text-rose-600 font-bold">🫀 B+</span>
+                      {patient?.age || '35y'} • {patient?.gender || 'Unknown'} • <span className="text-rose-600 font-bold">🫀 {patient?.bloodGroup || 'O+'}</span>
                     </p>
                     <p className="text-[11px] text-slate-400 font-mono mt-0.5">
-                      DOB: 14 May 1968
+                      DOB: {patient?.dateOfBirth ? new Date(patient.dateOfBirth).toLocaleDateString("en-GB", { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
                     </p>
                   </div>
                 </div>
@@ -201,12 +208,17 @@ export default function PatientOverviewPage({
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    <span className="text-xs font-bold bg-white text-rose-700 border border-rose-200 px-2.5 py-1 rounded-lg shadow-xs">
-                      Penicillin (Anaphylaxis)
-                    </span>
-                    <span className="text-xs font-bold bg-white text-rose-700 border border-rose-200 px-2.5 py-1 rounded-lg shadow-xs">
-                      Sulfa Drugs
-                    </span>
+                    {patient?.allergies && patient.allergies.length > 0 ? (
+                      patient.allergies.map((a, i) => (
+                        <span key={i} className="text-xs font-bold bg-white text-rose-700 border border-rose-200 px-2.5 py-1 rounded-lg shadow-xs">
+                          {a.allergen} ({a.reaction || a.severity})
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs font-medium text-slate-500 italic">
+                        No known drug allergies (NKDA) recorded
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -215,21 +227,21 @@ export default function PatientOverviewPage({
                   <div className="flex justify-between">
                     <span className="text-slate-400 font-medium">BED / WARD</span>
                     <span className="font-bold text-slate-900 font-mono">
-                      Bed C-12 • Cardiology Ward 3
+                      {patient?.bedNumber || 'Unassigned'} • {patient?.ward || 'General Ward'}
                     </span>
                   </div>
 
                   <div className="flex justify-between">
                     <span className="text-slate-400 font-medium">ATTENDING CLINICIAN</span>
                     <span className="font-bold text-slate-900">
-                      Dr. Marcus Vance (Cardiology)
+                      {patient?.attendingDoctor || 'Attending Physician'}
                     </span>
                   </div>
 
                   <div className="flex justify-between">
                     <span className="text-slate-400 font-medium">ADMISSION</span>
                     <span className="font-bold text-slate-900">
-                      27 Aug 2026 (3 days ago)
+                      {patient?.admissionDate || 'Recently'}
                     </span>
                   </div>
 
@@ -244,8 +256,12 @@ export default function PatientOverviewPage({
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
                       Emergency Contact
                     </span>
-                    <p className="font-bold text-slate-900">Sunita Kulkarni (Wife)</p>
-                    <p className="text-slate-500 font-mono text-[11px]">+91 98201 44521</p>
+                    <p className="font-bold text-slate-900">
+                      {patient?.emergencyContactName || 'None listed'}
+                    </p>
+                    <p className="text-slate-500 font-mono text-[11px]">
+                      {patient?.emergencyContactPhone || 'N/A'}
+                    </p>
                   </div>
                 </div>
 

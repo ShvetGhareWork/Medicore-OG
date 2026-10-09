@@ -121,9 +121,9 @@ export const PatientCard: React.FC<PatientCardProps> = ({ patient }) => {
         {/* Patient ID Code & Bed Monitor Row */}
         <div className="flex items-center justify-between text-[11px] font-mono mt-3.5 text-slate-500">
           <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-            {patient.patientIdCode || `MC-${patient.id.substring(0, 5).toUpperCase()}`}
+            {patient.patientIdCode || patient.id}
           </span>
-          <span>{patient.monitorLabel || "CCU Bedside Monitor #2"}</span>
+          <span>{patient.monitorLabel || "Bedside Telemetry"}</span>
         </div>
 
         {/* Primary Diagnosis Box */}
@@ -133,7 +133,7 @@ export const PatientCard: React.FC<PatientCardProps> = ({ patient }) => {
             <span>Primary Diagnosis</span>
           </div>
           <p className="text-xs font-bold text-slate-900 leading-snug">
-            {patient.primaryDiagnosis || "Acute Myocardial Infarction (STEMI)"}
+            {patient.primaryDiagnosis || "Admitted Patient"}
           </p>
         </div>
 
@@ -145,7 +145,7 @@ export const PatientCard: React.FC<PatientCardProps> = ({ patient }) => {
               <span>Attending:</span>
             </span>
             <span className="font-semibold text-slate-800">
-              {patient.attendingDoctor || "Dr. Marcus Vance (Cardiology)"}
+              {patient.attendingDoctor || "Attending Clinician"}
             </span>
           </div>
 
@@ -155,7 +155,7 @@ export const PatientCard: React.FC<PatientCardProps> = ({ patient }) => {
               <span>Location:</span>
             </span>
             <span className="font-semibold text-teal-900 bg-teal-50 border border-teal-200/80 px-2 py-0.5 rounded-lg text-[11px] font-mono">
-              {patient.bedNumber || "Bed C-12"} • {patient.ward || "Cardiology"}
+              {patient.bedNumber || "Unassigned"} • {patient.ward || "General"}
             </span>
           </div>
 
@@ -165,7 +165,7 @@ export const PatientCard: React.FC<PatientCardProps> = ({ patient }) => {
               <span>Admitted:</span>
             </span>
             <span className="text-slate-700">
-              {patient.admittedDate || "27 Aug 2026 (3d ago)"}
+              {patient.admittedDate || "Recently"}
             </span>
           </div>
         </div>
