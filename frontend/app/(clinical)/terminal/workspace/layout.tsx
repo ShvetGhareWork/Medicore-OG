@@ -6,8 +6,8 @@ import { getUser } from "@/lib/auth";
 import InactivityLogout from "@/components/clinical/InactivityLogout";
 
 export default function WorkspaceLayout({
-  children,
-}: {
+                                          children,
+                                        }: {
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -20,7 +20,7 @@ export default function WorkspaceLayout({
       return;
     }
     const hasRole = user.roles?.some((r: string) =>
-      ["DOCTOR", "NURSE", "ADMIN", "ADMINISTRATIVE"].includes(r.toUpperCase())
+        ["DOCTOR", "NURSE", "ADMIN", "ADMINISTRATIVE"].includes(r.toUpperCase())
     );
     if (!hasRole) {
       router.push("/terminal");
@@ -31,19 +31,19 @@ export default function WorkspaceLayout({
 
   if (!isAuthorized) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
-        <div className="flex items-center space-x-3">
-          <div className="w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-sm font-medium">Verifying terminal credentials...</span>
+        <div className="min-h-screen w-full bg-slate-950 flex items-center justify-center text-slate-400 p-4">
+          <div className="flex items-center space-x-2 md:space-x-3">
+            <div className="w-4 h-4 md:w-5 md:h-5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin shrink-0"></div>
+            <span className="text-xs md:text-sm font-medium text-center">Verifying terminal credentials...</span>
+          </div>
         </div>
-      </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-teal-500/30 selection:text-teal-200">
-      <InactivityLogout />
-      {children}
-    </div>
+      <div className="min-h-screen w-full bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-teal-500/30 selection:text-teal-200 relative overflow-x-hidden">
+        <InactivityLogout />
+        {children}
+      </div>
   );
 }

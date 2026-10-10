@@ -10,9 +10,9 @@ interface ActiveDiagnosesCardProps {
 }
 
 export const ActiveDiagnosesCard: React.FC<ActiveDiagnosesCardProps> = ({
-  diagnoses,
-  onAddDiagnosis,
-}) => {
+                                                                          diagnoses,
+                                                                          onAddDiagnosis,
+                                                                        }) => {
   const defaultDiagnoses = [
     {
       id: "diag-1",
@@ -41,51 +41,52 @@ export const ActiveDiagnosesCard: React.FC<ActiveDiagnosesCardProps> = ({
   ];
 
   return (
-    <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-xs">
-      <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
-        <div className="flex items-center space-x-2">
-          <div className="p-1.5 rounded-xl bg-teal-50 text-teal-700">
-            <Stethoscope className="w-5 h-5" />
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-4 md:p-6 shadow-xs">
+        <div className="flex items-center justify-between pb-3 md:pb-4 border-b border-slate-100 mb-3 md:mb-4 gap-2">
+          <div className="flex items-center space-x-2">
+            <div className="p-1.5 rounded-xl bg-teal-50 text-teal-700 shrink-0">
+              <Stethoscope className="w-4 h-4 md:w-5 md:h-5" />
+            </div>
+            <h4 className="text-sm md:text-base font-bold text-slate-900 leading-tight">Active Conditions & Diagnoses</h4>
           </div>
-          <h4 className="text-base font-bold text-slate-900">Active Conditions & Diagnoses</h4>
+
+          {onAddDiagnosis && (
+              <button
+                  onClick={onAddDiagnosis}
+                  className="flex items-center space-x-1 text-[11px] md:text-xs font-bold text-teal-700 hover:text-teal-900 shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden sm:inline">Add Diagnosis</span>
+                <span className="sm:hidden">Add</span>
+              </button>
+          )}
         </div>
 
-        {onAddDiagnosis && (
-          <button
-            onClick={onAddDiagnosis}
-            className="flex items-center space-x-1 text-xs font-bold text-teal-700 hover:text-teal-900"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Diagnosis</span>
-          </button>
-        )}
-      </div>
-
-      <div className="space-y-3">
-        {defaultDiagnoses.map((diag) => (
-          <div
-            key={diag.id}
-            className="bg-slate-50/70 border border-slate-200/70 rounded-xl p-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3"
-          >
-            <div className="space-y-1">
-              <div className="flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                <h5 className="text-sm font-bold text-slate-900">{diag.title}</h5>
-                <span className="text-[10px] font-mono font-bold bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">
+        <div className="space-y-3">
+          {defaultDiagnoses.map((diag) => (
+              <div
+                  key={diag.id}
+                  className="bg-slate-50/70 border border-slate-200/70 rounded-xl p-3.5 md:p-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3 md:gap-4"
+              >
+                <div className="space-y-1.5 flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0 mt-0.5"></span>
+                    <h5 className="text-sm font-bold text-slate-900 break-words">{diag.title}</h5>
+                    <span className="text-[10px] font-mono font-bold bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded shrink-0">
                   {diag.icd10}
                 </span>
-              </div>
-              <p className="text-xs text-slate-500">{diag.description}</p>
-            </div>
+                  </div>
+                  <p className="text-xs text-slate-500 leading-relaxed">{diag.description}</p>
+                </div>
 
-            <span
-              className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase shrink-0 self-start border ${diag.badgeStyle}`}
-            >
+                <span
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase shrink-0 self-start border w-fit ${diag.badgeStyle}`}
+                >
               {diag.statusText}
             </span>
-          </div>
-        ))}
+              </div>
+          ))}
+        </div>
       </div>
-    </div>
   );
 };

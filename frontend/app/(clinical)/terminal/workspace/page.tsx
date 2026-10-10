@@ -16,3 +16,4 @@ export default function WorkspaceRedirect() {
     </div>
   );
 }
+1
